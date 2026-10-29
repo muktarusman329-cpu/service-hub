@@ -11,6 +11,7 @@ import { AdminModule } from "./admin.module";
 import { CatalogModule } from "./catalog.module";
 import { TechnicianModule } from "./technician.module";
 import { JobsModule } from "./jobs.module";
+import { MarketplaceModule } from "./marketplace.module";
 import { JobsSocketAdapter } from "./jobs.gateway";
 import { CsrfGuard } from "./security";
 import { StructuredLogger } from "./structured-logger";
@@ -39,7 +40,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [AuthModule, AdminModule, CatalogModule, TechnicianModule, JobsModule],
+  imports: [AuthModule, AdminModule, CatalogModule, TechnicianModule, JobsModule, MarketplaceModule],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: CsrfGuard }, PrismaService]
 })

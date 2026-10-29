@@ -116,6 +116,18 @@ enum ConversationStatus {
   OPEN
   CLOSED
 }
+enum MarketplaceListingStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  SOLD
+}
+enum MarketplaceItemCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
 enum ConversationParticipantRole {
   USER
   TECHNICIAN
@@ -167,6 +179,8 @@ model User {
   conversationMemberships ConversationParticipant[]
   messages                Message[]
   reviewedMessageFlags    MessageFlag[]             @relation("MessageFlagReviewer")
+  marketListings          MarketListing[]           @relation("MarketListingSeller")
+  reviewedMarketListings  MarketListing[]           @relation("MarketListingReviewer")
 
   @@index([status, createdAt])
   @@map("users")
@@ -326,6 +340,7 @@ model City {
   technicians TechnicianProfile[]
   priceGuidance PriceGuidance[]
   jobRequests JobRequest[]
+  marketListings MarketListing[]
 
   @@unique([countryCode, slug])
   @@index([isActive, name])
@@ -348,6 +363,7 @@ model Area {
   children     Area[]   @relation("AreaParent")
   technicians TechnicianArea[]
   jobRequests JobRequest[]
+  marketListings MarketListing[]
 
   @@unique([cityId, slug])
   @@index([cityId, isActive, name])
@@ -426,6 +442,34 @@ model Service {
   @@unique([categoryId, slug])
   @@index([categoryId, isActive, sortOrder])
   @@map("services")
+}
+
+model MarketListing {
+  id             String                    @id @default(uuid()) @db.Uuid
+  sellerId       String                    @map("seller_id") @db.Uuid
+  cityId         String                    @map("city_id") @db.Uuid
+  areaId         String                    @map("area_id") @db.Uuid
+  title          String                    @db.VarChar(120)
+  description    String                    @db.VarChar(2000)
+  category       String                    @db.VarChar(40)
+  condition      MarketplaceItemCondition
+  priceKobo      Int                       @map("price_kobo")
+  status         MarketplaceListingStatus  @default(PENDING_REVIEW)
+  moderationNote String?                   @map("moderation_note") @db.VarChar(500)
+  reviewedById   String?                   @map("reviewed_by_id") @db.Uuid
+  reviewedAt     DateTime?                 @map("reviewed_at") @db.Timestamptz(6)
+  publishedAt    DateTime?                 @map("published_at") @db.Timestamptz(6)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  seller         User                      @relation("MarketListingSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  reviewer       User?                     @relation("MarketListingReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  city           City                      @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  area           Area                      @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  @@index([cityId, status, createdAt(sort: Desc)])
+  @@index([category, status, createdAt(sort: Desc)])
+  @@index([sellerId, createdAt(sort: Desc)])
+  @@map("market_listings")
 }
 
 model CityService {

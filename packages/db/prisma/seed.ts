@@ -9,6 +9,7 @@ const permissions = [
   ["technician.approve", "Approve technician accounts"], ["privacy.requests.manage", "Review data subject requests"], ["profile.read.own", "Read own profile"],
   ["profile.manage.own", "Manage own profile"],
   ["catalog.manage", "Manage service categories, services and guidance"],
+  ["marketplace.manage", "Review marketplace listings"],
   ["technician.review", "Review technician applications"],
   ["technician.reject", "Reject applications or request changes"], ["technician.suspend", "Suspend or reactivate technicians"],
   ["kyc.view", "View masked identity data and documents"], ["kyc.view_sensitive", "Reveal identity numbers with an audit reason"],
@@ -31,7 +32,7 @@ async function main() {
   const allPermissions = permissions.map(([key]) => key);
   const rolePermissions: Record<(typeof roleKeys)[number], string[]> = {
     SUPER_ADMIN: allPermissions,
-    ADMIN: ["admin.access", "users.read", "users.manage", "roles.read", "catalog.manage", "technician.review", "technician.approve", "technician.reject", "technician.suspend", "kyc.view", "jobs.manage", "bookings.manage", "chat.moderate"],
+    ADMIN: ["admin.access", "users.read", "users.manage", "roles.read", "catalog.manage", "marketplace.manage", "technician.review", "technician.approve", "technician.reject", "technician.suspend", "kyc.view", "jobs.manage", "bookings.manage", "chat.moderate"],
     TECHNICIAN: ["profile.read.own", "profile.manage.own"],
     USER: ["profile.read.own", "profile.manage.own"]
   };
