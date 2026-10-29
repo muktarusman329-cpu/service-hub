@@ -13,7 +13,7 @@ const screens = [
   { area: "Public", route: "/help", name: "Help center", status: true },
   { area: "Public", route: "/contact", name: "Contact", status: true },
   { area: "Public", route: "/404", name: "404 page", status: true },
-  { area: "Public", route: "/500", name: "500 page", status: true },
+  { area: "Public", route: "/server-error", name: "500 error preview", status: true },
   { area: "Public", route: "/maintenance", name: "Maintenance page", status: true },
   { area: "Public", route: "/offline", name: "Offline page", status: true },
   { area: "Account", route: "/account/profile", name: "Profile", status: false },
