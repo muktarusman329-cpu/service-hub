@@ -1,0 +1,49 @@
+{
+  "name": "@servicehub/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file=../../.env --import tsx --watch src/main.ts",
+    "test:unit": "node --env-file=../../.env --import tsx --test src/auth-primitives.test.ts src/security.test.ts src/structured-logger.test.ts src/technician-primitives.test.ts src/kyc-crypto.test.ts src/booking-primitives.test.ts src/ulid.test.ts src/jobs.gateway.test.ts",
+    "test:integration": "node --env-file=../../.env --import tsx --test test/phase2.integration.test.ts test/phase3.integration.test.ts test/phase3-audit.integration.test.ts test/notification.queue.integration.test.ts test/phase4.jobs.integration.test.ts",
+    "test:phase4": "node --env-file=../../.env --import tsx --test test/phase4.jobs.integration.test.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/jwt": "^12.0.3",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/platform-socket.io": "^11.2.8",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^11.2.8",
+    "@servicehub/config": "workspace:*",
+    "@servicehub/db": "workspace:*",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "argon2": "^0.45.1",
+    "bullmq": "^6.5.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.3.0",
+    "google-auth-library": "^11.3.1",
+    "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
+    "nodemailer": "^10.2.1",
+    "otpauth": "^9.5.2",
+    "reflect-metadata": "^0.2.2",
+    "resend": "^6.35.0",
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.18.10",
+    "@types/nodemailer": "^8.0.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

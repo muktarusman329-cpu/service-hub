@@ -1,0 +1,890 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OtpPurpose {
+  SIGN_IN
+  SIGN_UP
+  VERIFY_EMAIL
+  LINK_PHONE
+  LINK_EMAIL
+  PASSWORD_RESET
+}
+
+enum OtpChannel {
+  WHATSAPP
+  SMS
+  EMAIL
+  DEV
+}
+
+enum OAuthProvider {
+  GOOGLE
+}
+
+enum ConsentPurpose {
+  TERMS
+  PRIVACY
+  MARKETING
+  KYC
+}
+
+enum TechnicianApprovalStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+  REACTIVATED
+}
+
+enum DataRequestType {
+  EXPORT
+  DELETE
+}
+
+enum DataRequestStatus {
+  REQUESTED
+  VERIFIED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum JobRequestStatus {
+  OPEN
+  DIRECTED
+  QUOTED
+  ACCEPTED
+  CANCELLED_BY_USER
+  CANCELLED_BY_TECHNICIAN
+  EXPIRED
+  COMPLETED
+  DISPUTED
+}
+
+enum RequestUrgency {
+  STANDARD
+  URGENT
+}
+enum QuoteStatus {
+  ACTIVE
+  ACCEPTED
+  NOT_SELECTED
+  WITHDRAWN
+  EXPIRED
+}
+enum BookingStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  TECHNICIAN_EN_ROUTE
+  IN_PROGRESS
+  COMPLETED_PENDING_CONFIRMATION
+  COMPLETED
+  CANCELLED_BY_USER
+  CANCELLED_BY_TECHNICIAN
+  EXPIRED
+  DISPUTED
+}
+enum BookingPaymentMethod {
+  ONLINE
+  CASH
+}
+enum BookingActorRole {
+  USER
+  TECHNICIAN
+  ADMIN
+  SYSTEM
+}
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+enum ConversationParticipantRole {
+  USER
+  TECHNICIAN
+  ADMIN
+}
+enum MessageFlagStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+  ACTIONED
+}
+
+model User {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  phoneE164               String?                  @unique @map("phone_e164") @db.VarChar(20)
+  email                   String?                  @unique @db.VarChar(320)
+  displayName             String?                  @map("display_name") @db.VarChar(120)
+  passwordHash            String?                  @map("password_hash")
+  status                  UserStatus               @default(ACTIVE)
+  preferredOtpChannel     OtpChannel?              @map("preferred_otp_channel")
+  phoneVerifiedAt         DateTime?                @map("phone_verified_at") @db.Timestamptz(6)
+  emailVerifiedAt         DateTime?                @map("email_verified_at") @db.Timestamptz(6)
+  locale                  String                   @default("en") @db.VarChar(12)
+  totpSecretEncrypted     String?                  @map("totp_secret_encrypted")
+  totpEnabledAt           DateTime?                @map("totp_enabled_at") @db.Timestamptz(6)
+  recoveryCodeHashes      String[]                 @default([]) @map("recovery_code_hashes")
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt               DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  oauthAccounts           OAuthAccount[]
+  otpCodes                OtpCode[]
+  sessions                Session[]
+  roles                   UserRole[]
+  consents                Consent[]
+  auditLogs               AuditLog[]
+  technicianProfile       TechnicianProfile?
+  dataRequests            DataSubjectRequest[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  reviewedDataRequests    DataSubjectRequest[]     @relation("DataSubjectReviewer")
+  assignedUserRoles       UserRole[]               @relation("RoleAssignedBy")
+  settingsUpdated         Setting[]                @relation("SettingUpdatedBy")
+  technicianHistoryActor  TechnicianStatusHistory[]
+  inboxNotifications      UserInboxNotification[]
+  jobRequests             JobRequest[]             @relation("JobRequestCustomer")
+  bookings                Booking[]                @relation("BookingCustomer")
+  bookingHistory          BookingStatusHistory[]   @relation("BookingHistoryActor")
+  cancellations           Cancellation[]           @relation("CancellationActor")
+  conversationMemberships ConversationParticipant[]
+  messages                Message[]
+  reviewedMessageFlags    MessageFlag[]             @relation("MessageFlagReviewer")
+
+  @@index([status, createdAt])
+  @@map("users")
+}
+
+model OAuthAccount {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  provider        OAuthProvider
+  providerSubject String        @map("provider_subject") @db.VarChar(255)
+  email           String?       @db.VarChar(320)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@index([userId, provider])
+  @@map("oauth_accounts")
+}
+
+model OtpCode {
+  id              String     @id @default(uuid()) @db.Uuid
+  userId          String?    @map("user_id") @db.Uuid
+  destinationHash String     @map("destination_hash") @db.VarChar(64)
+  purpose         OtpPurpose
+  codeHash        String     @map("code_hash") @db.VarChar(64)
+  channel         OtpChannel
+  expiresAt       DateTime   @map("expires_at") @db.Timestamptz(6)
+  attemptCount    Int        @default(0) @map("attempt_count")
+  consumedAt      DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  metadata        Json?
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user            User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([destinationHash, purpose, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  familyId         String    @map("family_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(64)
+  deviceLabel      String?   @map("device_label") @db.VarChar(160)
+  ipHash           String?   @map("ip_hash") @db.VarChar(64)
+  userAgent        String?   @map("user_agent") @db.VarChar(500)
+  lastSeenAt       DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([familyId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  key         String           @unique @db.VarChar(60)
+  name        String           @db.VarChar(100)
+  description String?
+  isSystem    Boolean          @default(true) @map("is_system")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  key         String           @unique @db.VarChar(120)
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId, roleId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId         String   @map("user_id") @db.Uuid
+  roleId         String   @map("role_id") @db.Uuid
+  assignedBy     String?  @map("assigned_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedByUser User?    @relation("RoleAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId, userId])
+  @@index([assignedBy])
+  @@map("user_roles")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String   @db.VarChar(120)
+  entityType  String?  @map("entity_type") @db.VarChar(100)
+  entityId    String?  @map("entity_id") @db.VarChar(100)
+  ipHash      String?  @map("ip_hash") @db.VarChar(64)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+model Consent {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @map("user_id") @db.Uuid
+  purpose       ConsentPurpose
+  policyVersion String         @map("policy_version") @db.VarChar(40)
+  granted       Boolean
+  capturedAt    DateTime       @default(now()) @map("captured_at") @db.Timestamptz(6)
+  withdrawnAt   DateTime?      @map("withdrawn_at") @db.Timestamptz(6)
+  source        String         @default("web") @db.VarChar(40)
+  evidence      Json?
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, purpose, capturedAt(sort: Desc)])
+  @@index([policyVersion, purpose])
+  @@map("consents")
+}
+
+model City {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(100)
+  slug         String   @unique @db.VarChar(120)
+  countryCode  String   @default("NG") @map("country_code") @db.Char(2)
+  currencyCode String   @default("NGN") @map("currency_code") @db.Char(3)
+  timezone     String   @default("Africa/Lagos") @db.VarChar(50)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  areas        Area[]
+  cityServices CityService[]
+  featureFlags CityCategoryFlag[]
+  technicians TechnicianProfile[]
+  priceGuidance PriceGuidance[]
+  jobRequests JobRequest[]
+
+  @@unique([countryCode, slug])
+  @@index([isActive, name])
+  @@map("cities")
+}
+
+model Area {
+  id           String   @id @default(uuid()) @db.Uuid
+  cityId       String   @map("city_id") @db.Uuid
+  parentAreaId String?  @map("parent_area_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  slug         String   @db.VarChar(120)
+  centerLat    Decimal? @map("center_lat") @db.Decimal(9, 6)
+  centerLng    Decimal? @map("center_lng") @db.Decimal(9, 6)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  city         City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  parent       Area?    @relation("AreaParent", fields: [parentAreaId], references: [id], onDelete: SetNull)
+  children     Area[]   @relation("AreaParent")
+  technicians TechnicianArea[]
+  jobRequests JobRequest[]
+
+  @@unique([cityId, slug])
+  @@index([cityId, isActive, name])
+  @@index([parentAreaId])
+  @@map("areas")
+}
+
+model TechnicianProfile {
+  id             String                   @id @default(uuid()) @db.Uuid
+  userId         String                   @unique @map("user_id") @db.Uuid
+  approvalStatus TechnicianApprovalStatus @default(PENDING_APPROVAL) @map("approval_status")
+  legalName      String?                  @map("legal_name") @db.VarChar(120)
+  bio            String?                  @db.VarChar(1200)
+  profilePhotoKey String?                 @map("profile_photo_key") @db.VarChar(500)
+  cityId         String?                  @map("city_id") @db.Uuid
+  weeklyAvailability Json?                @map("weekly_availability")
+  guarantorName  String?                  @map("guarantor_name") @db.VarChar(120)
+  guarantorPhoneEncrypted String?         @map("guarantor_phone_encrypted")
+  guarantorRelationship String?           @map("guarantor_relationship") @db.VarChar(80)
+  guarantorConsentAt DateTime?            @map("guarantor_consent_at") @db.Timestamptz(6)
+  submittedAt    DateTime?                @map("submitted_at") @db.Timestamptz(6)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city           City?                    @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  skills         TechnicianSkill[]
+  areas          TechnicianArea[]
+  portfolio      TechnicianPortfolio[]
+  statusHistory  TechnicianStatusHistory[]
+  kyc            TechnicianKyc?
+  directJobRequests JobRequest[] @relation("DirectTechnician")
+  quotes         Quote[]
+  bookings       Booking[]
+  availabilityBlocks TechnicianAvailabilityBlock[]
+  conversations Conversation[]
+
+  @@index([approvalStatus, createdAt])
+  @@index([cityId, approvalStatus, submittedAt])
+  @@map("technician_profiles")
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique @db.VarChar(100)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  iconKey     String   @default("grid") @map("icon_key") @db.VarChar(80)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  marketplaceOnly Boolean @default(false) @map("marketplace_only")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  services    Service[]
+  cityFlags   CityCategoryFlag[]
+  @@index([isActive, sortOrder])
+  @@map("categories")
+}
+
+model Service {
+  id          String   @id @default(uuid()) @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  slug        String   @db.VarChar(120)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  iconKey     String   @default("wrench") @map("icon_key") @db.VarChar(80)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  cities      CityService[]
+  prices      PriceGuidance[]
+  technicianSkills TechnicianSkill[]
+  jobRequests JobRequest[]
+  @@unique([categoryId, slug])
+  @@index([categoryId, isActive, sortOrder])
+  @@map("services")
+}
+
+model CityService {
+  cityId    String   @map("city_id") @db.Uuid
+  serviceId String   @map("service_id") @db.Uuid
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  @@id([cityId, serviceId])
+  @@index([serviceId, isActive])
+  @@map("city_services")
+}
+
+model PriceGuidance {
+  id        String   @id @default(uuid()) @db.Uuid
+  cityId    String   @map("city_id") @db.Uuid
+  serviceId String   @map("service_id") @db.Uuid
+  minPrice  Decimal  @map("min_price") @db.Decimal(12, 2)
+  maxPrice  Decimal  @map("max_price") @db.Decimal(12, 2)
+  currency  String   @default("NGN") @db.Char(3)
+  label     String   @default("Guide only — final price is agreed with the technician") @db.VarChar(160)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  @@unique([cityId, serviceId])
+  @@index([cityId])
+  @@map("price_guidance")
+}
+
+model CityCategoryFlag {
+  id         String   @id @default(uuid()) @db.Uuid
+  cityId     String   @map("city_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  city       City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@unique([cityId, categoryId])
+  @@index([cityId, enabled])
+  @@map("city_category_flags")
+}
+
+model TechnicianSkill {
+  profileId String   @map("profile_id") @db.Uuid
+  serviceId String   @map("service_id") @db.Uuid
+  yearsExperience Int @default(0) @map("years_experience")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  profile   TechnicianProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  @@id([profileId, serviceId])
+  @@index([serviceId, profileId])
+  @@map("technician_skills")
+}
+
+model TechnicianArea {
+  profileId String   @map("profile_id") @db.Uuid
+  areaId    String   @map("area_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  profile   TechnicianProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  area      Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  @@id([profileId, areaId])
+  @@index([areaId, profileId])
+  @@map("technician_areas")
+}
+
+model TechnicianPortfolio {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  objectKey String   @map("object_key") @db.VarChar(500)
+  caption   String?  @db.VarChar(240)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  profile   TechnicianProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@index([profileId, sortOrder])
+  @@map("technician_portfolio")
+}
+
+model TechnicianStatusHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  fromStatus TechnicianApprovalStatus? @map("from_status")
+  toStatus TechnicianApprovalStatus @map("to_status")
+  actorId   String?  @map("actor_id") @db.Uuid
+  reason    String?  @db.VarChar(1000)
+  internalNote String? @map("internal_note") @db.VarChar(2000)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  profile   TechnicianProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actor     User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([profileId, createdAt(sort: Desc)])
+  @@index([toStatus, createdAt])
+  @@map("technician_status_history")
+}
+
+model TechnicianKyc {
+  id        String   @id @default(uuid()) @db.Uuid
+  profileId String   @unique @map("profile_id") @db.Uuid
+  idType    String   @map("id_type") @db.VarChar(30)
+  idNumberEncrypted String? @map("id_number_encrypted") @db.Text
+  idNumberBlindIndex String? @unique @map("id_number_blind_index") @db.VarChar(64)
+  keyId     String   @map("key_id") @db.VarChar(80)
+  idPhotoKey String? @map("id_photo_key") @db.VarChar(500)
+  selfieKey String?  @map("selfie_key") @db.VarChar(500)
+  status    String   @default("SUBMITTED") @db.VarChar(30)
+  provider  String   @default("MANUAL") @db.VarChar(30)
+  verificationNote String? @map("verification_note") @db.VarChar(1000)
+  minimalVerificationRecord String? @map("minimal_verification_record") @db.VarChar(500)
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  retentionAt DateTime? @map("retention_at") @db.Timestamptz(6)
+  clearedAt DateTime? @map("cleared_at") @db.Timestamptz(6)
+  profile TechnicianProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  @@index([status, submittedAt])
+  @@index([retentionAt])
+  @@map("technician_kyc")
+}
+
+model DataSubjectRequest {
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  reviewerId      String?           @map("completed_by") @db.Uuid
+  requestType     DataRequestType   @map("request_type")
+  status          DataRequestStatus @default(REQUESTED)
+  requestedAt     DateTime          @default(now()) @map("requested_at") @db.Timestamptz(6)
+  verifiedAt      DateTime?         @map("verified_at") @db.Timestamptz(6)
+  completedAt     DateTime?         @map("completed_at") @db.Timestamptz(6)
+  exportObjectKey String?           @map("export_object_key")
+  expiresAt       DateTime?         @map("expires_at") @db.Timestamptz(6)
+  decisionNote    String?           @map("decision_note")
+  user            User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reviewer        User?             @relation("DataSubjectReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, requestedAt(sort: Desc)])
+  @@index([status, requestedAt])
+  @@index([expiresAt])
+  @@map("data_subject_requests")
+}
+
+model Notification {
+  id                String     @id @default(uuid()) @db.Uuid
+  userId            String?    @map("user_id") @db.Uuid
+  destinationHash   String     @map("destination_hash") @db.VarChar(64)
+  channel           OtpChannel
+  templateKey       String     @map("template_key") @db.VarChar(80)
+  status            String     @default("QUEUED") @db.VarChar(20)
+  providerReference String?    @map("provider_reference")
+  attemptCount      Int        @default(0) @map("attempt_count")
+  scheduledAt       DateTime   @default(now()) @map("scheduled_at") @db.Timestamptz(6)
+  sentAt            DateTime?  @map("sent_at") @db.Timestamptz(6)
+  lastErrorCode     String?    @map("last_error_code") @db.VarChar(80)
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, scheduledAt])
+  @@index([providerReference])
+  @@map("notifications")
+}
+
+model UserInboxNotification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.VarChar(160)
+  body      String   @db.VarChar(500)
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("user_inbox_notifications")
+}
+
+model NotificationPreference {
+  id       String     @id @default(uuid()) @db.Uuid
+  userId   String     @map("user_id") @db.Uuid
+  channel  OtpChannel
+  eventKey String     @map("event_key") @db.VarChar(80)
+  enabled  Boolean    @default(true)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, eventKey])
+  @@index([channel, eventKey, enabled])
+  @@map("notification_preferences")
+}
+
+model Setting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @db.VarChar(120)
+  valueJson   Json     @map("value_json")
+  scopeType   String   @default("GLOBAL") @map("scope_type") @db.VarChar(30)
+  scopeId     String   @default("global") @map("scope_id") @db.VarChar(100)
+  updatedById String?  @map("updated_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy   User?    @relation("SettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([scopeType, scopeId, key])
+  @@index([scopeType, scopeId])
+  @@index([updatedById])
+  @@map("settings")
+}
+
+// Phase 4: job requests, quote history, bookings and in-app conversations.
+// IDs in this domain are application-generated ULIDs (26 Crockford base32
+// characters); all timestamps use UTC timestamptz.
+model JobRequest {
+  id                       String          @id @db.VarChar(26)
+  customerId               String          @map("customer_id") @db.Uuid
+  serviceId                String          @map("service_id") @db.Uuid
+  cityId                   String          @map("city_id") @db.Uuid
+  areaId                   String          @map("area_id") @db.Uuid
+  directTechnicianProfileId String?         @map("direct_technician_profile_id") @db.Uuid
+  nearestLandmark          String          @map("nearest_landmark") @db.VarChar(200)
+  description              String          @db.VarChar(3000)
+  latitude                 Decimal?        @db.Decimal(9, 6)
+  longitude                Decimal?        @db.Decimal(9, 6)
+  isAsap                   Boolean         @default(true) @map("is_asap")
+  preferredStartAt         DateTime?       @map("preferred_start_at") @db.Timestamptz(6)
+  preferredEndAt           DateTime?       @map("preferred_end_at") @db.Timestamptz(6)
+  budgetMinKobo            Int?            @map("budget_min_kobo")
+  budgetMaxKobo            Int?            @map("budget_max_kobo")
+  urgency                  RequestUrgency  @default(STANDARD)
+  status                   JobRequestStatus @default(OPEN)
+  expiresAt                DateTime        @map("expires_at") @db.Timestamptz(6)
+  clientIdempotencyKey     String          @map("client_idempotency_key") @db.VarChar(100)
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  customer                 User            @relation("JobRequestCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  service                  Service         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  city                     City            @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  area                     Area            @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  directTechnician         TechnicianProfile? @relation("DirectTechnician", fields: [directTechnicianProfileId], references: [id], onDelete: SetNull)
+  media                    JobRequestMedia[]
+  quotes                   Quote[]
+  booking                  Booking?
+  cancellation             Cancellation?
+  conversations            Conversation[]
+  @@unique([customerId, clientIdempotencyKey])
+  @@index([areaId, serviceId, status, createdAt(sort: Desc)])
+  @@index([serviceId, status, createdAt(sort: Desc)])
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([directTechnicianProfileId, status, createdAt(sort: Desc)])
+  @@index([status, expiresAt])
+  @@map("job_requests")
+}
+
+model JobRequestMedia {
+  id          String    @id @db.VarChar(26)
+  requestId   String    @map("request_id") @db.VarChar(26)
+  objectKey   String    @unique @map("object_key") @db.VarChar(500)
+  contentType String    @map("content_type") @db.VarChar(80)
+  sizeBytes   Int       @map("size_bytes")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  request     JobRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  @@unique([requestId, sortOrder])
+  @@index([requestId, createdAt])
+  @@map("job_request_media")
+}
+
+model Quote {
+  id                   String      @id @db.VarChar(26)
+  jobRequestId         String      @map("job_request_id") @db.VarChar(26)
+  technicianProfileId  String      @map("technician_profile_id") @db.Uuid
+  version              Int         @default(1)
+  status               QuoteStatus @default(ACTIVE)
+  activeSlot           String?     @default("ACTIVE") @map("active_slot") @db.VarChar(10)
+  priceKobo            Int         @map("price_kobo")
+  laborKobo            Int?        @map("labor_kobo")
+  materialsKobo        Int?        @map("materials_kobo")
+  currencyCode         String      @default("NGN") @map("currency_code") @db.Char(3)
+  message              String?     @db.VarChar(1200)
+  estimatedStartAt     DateTime?   @map("estimated_start_at") @db.Timestamptz(6)
+  estimatedArrivalMins Int?        @map("estimated_arrival_mins")
+  validUntil           DateTime    @map("valid_until") @db.Timestamptz(6)
+  clientIdempotencyKey String?     @unique @map("client_idempotency_key") @db.VarChar(100)
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  request              JobRequest  @relation(fields: [jobRequestId], references: [id], onDelete: Cascade)
+  technician           TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Restrict)
+  revisions            QuoteRevision[]
+  booking              Booking?
+  @@unique([jobRequestId, technicianProfileId, activeSlot])
+  @@index([jobRequestId, status, createdAt])
+  @@index([technicianProfileId, status, createdAt(sort: Desc)])
+  @@index([status, validUntil])
+  @@map("quotes")
+}
+
+model QuoteRevision {
+  id          String   @id @db.VarChar(26)
+  quoteId     String   @map("quote_id") @db.VarChar(26)
+  version     Int
+  snapshot    Json
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  @@unique([quoteId, version])
+  @@index([quoteId, createdAt(sort: Desc)])
+  @@map("quote_revisions")
+}
+
+model Booking {
+  id                     String               @id @db.VarChar(26)
+  jobRequestId           String               @unique @map("job_request_id") @db.VarChar(26)
+  quoteId                String               @unique @map("quote_id") @db.VarChar(26)
+  customerId             String               @map("customer_id") @db.Uuid
+  technicianProfileId    String               @map("technician_profile_id") @db.Uuid
+  status                 BookingStatus        @default(REQUESTED)
+  paymentMethod          BookingPaymentMethod @map("payment_method")
+  priceKobo              Int                  @map("price_kobo")
+  platformFeePreviewKobo Int                  @default(0) @map("platform_fee_preview_kobo")
+  currencyCode           String               @default("NGN") @map("currency_code") @db.Char(3)
+  commissionRuleSnapshot Json?                @map("commission_rule_snapshot")
+  acceptIdempotencyKey   String               @unique @map("accept_idempotency_key") @db.VarChar(100)
+  acceptedAt             DateTime             @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  scheduledStartAt       DateTime             @map("scheduled_start_at") @db.Timestamptz(6)
+  scheduledEndAt         DateTime             @map("scheduled_end_at") @db.Timestamptz(6)
+  confirmedCompletedAt   DateTime?            @map("confirmed_completed_at") @db.Timestamptz(6)
+  completedByTechnicianAt DateTime?           @map("completed_by_technician_at") @db.Timestamptz(6)
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt              DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  request                JobRequest           @relation(fields: [jobRequestId], references: [id], onDelete: Restrict)
+  quote                  Quote                @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  customer               User                 @relation("BookingCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  technician             TechnicianProfile    @relation(fields: [technicianProfileId], references: [id], onDelete: Restrict)
+  history                BookingStatusHistory[]
+  cancellation           Cancellation?
+  conversation           Conversation?
+  @@index([customerId, status, createdAt(sort: Desc)])
+  @@index([technicianProfileId, status, acceptedAt(sort: Desc)])
+  @@index([technicianProfileId, scheduledStartAt, scheduledEndAt])
+  @@index([status, createdAt])
+  @@map("bookings")
+}
+
+model BookingStatusHistory {
+  id           String           @id @db.VarChar(26)
+  bookingId    String           @map("booking_id") @db.VarChar(26)
+  fromStatus   BookingStatus?   @map("from_status")
+  toStatus     BookingStatus   @map("to_status")
+  actorUserId  String?          @map("actor_user_id") @db.Uuid
+  actorRole    BookingActorRole @map("actor_role")
+  reason       String?          @db.VarChar(1000)
+  clientActionKey String?       @map("client_action_key") @db.VarChar(100)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  booking      Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor        User?            @relation("BookingHistoryActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  @@index([bookingId, createdAt])
+  @@index([toStatus, createdAt])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@map("booking_status_history")
+}
+
+model Cancellation {
+  id                    String   @id @db.VarChar(26)
+  bookingId             String?  @unique @map("booking_id") @db.VarChar(26)
+  jobRequestId           String?  @unique @map("job_request_id") @db.VarChar(26)
+  actorUserId           String   @map("actor_user_id") @db.Uuid
+  reasonCode            String   @map("reason_code") @db.VarChar(60)
+  reason                String?  @db.VarChar(1000)
+  isLate                Boolean  @default(false) @map("is_late")
+  clientIdempotencyKey  String   @unique @map("client_idempotency_key") @db.VarChar(100)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  booking               Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  jobRequest            JobRequest? @relation(fields: [jobRequestId], references: [id], onDelete: Cascade)
+  actor                 User     @relation("CancellationActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@map("cancellations")
+}
+
+model TechnicianAvailabilityBlock {
+  id                  String   @id @db.VarChar(26)
+  technicianProfileId String   @map("technician_profile_id") @db.Uuid
+  startsAt            DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt              DateTime @map("ends_at") @db.Timestamptz(6)
+  reason              String?  @db.VarChar(240)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  technician          TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+  @@index([technicianProfileId, startsAt, endsAt])
+  @@map("technician_availability_blocks")
+}
+
+model Conversation {
+  id                  String             @id @db.VarChar(26)
+  jobRequestId        String             @map("job_request_id") @db.VarChar(26)
+  bookingId           String?            @unique @map("booking_id") @db.VarChar(26)
+  technicianProfileId String             @map("technician_profile_id") @db.Uuid
+  status              ConversationStatus @default(OPEN)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  request             JobRequest         @relation(fields: [jobRequestId], references: [id], onDelete: Cascade)
+  booking             Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  technician          TechnicianProfile  @relation(fields: [technicianProfileId], references: [id], onDelete: Restrict)
+  participants        ConversationParticipant[]
+  messages            Message[]
+  @@unique([jobRequestId, technicianProfileId])
+  @@index([technicianProfileId, updatedAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  conversationId String                       @map("conversation_id") @db.VarChar(26)
+  userId         String                       @map("user_id") @db.Uuid
+  role           ConversationParticipantRole
+  joinedAt       DateTime                     @default(now()) @map("joined_at") @db.Timestamptz(6)
+  lastReadAt     DateTime?                    @map("last_read_at") @db.Timestamptz(6)
+  conversation   Conversation                 @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([conversationId, userId])
+  @@index([userId, lastReadAt])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id                 String          @id @db.VarChar(26)
+  conversationId     String          @map("conversation_id") @db.VarChar(26)
+  senderId           String          @map("sender_id") @db.Uuid
+  clientMessageKey   String          @map("client_message_key") @db.VarChar(100)
+  body               String          @default("") @db.VarChar(4000)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  editedAt           DateTime?       @map("edited_at") @db.Timestamptz(6)
+  deletedAt          DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  conversation       Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender             User            @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  attachments        MessageAttachment[]
+  flags              MessageFlag[]
+  @@unique([conversationId, senderId, clientMessageKey])
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([senderId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id          String   @id @db.VarChar(26)
+  messageId   String   @map("message_id") @db.VarChar(26)
+  objectKey   String   @unique @map("object_key") @db.VarChar(500)
+  contentType String   @map("content_type") @db.VarChar(80)
+  sizeBytes   Int      @map("size_bytes")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  @@index([messageId, createdAt])
+  @@map("message_attachments")
+}
+
+model MessageFlag {
+  id           String           @id @db.VarChar(26)
+  messageId    String           @map("message_id") @db.VarChar(26)
+  flagTypes    String[]         @map("flag_types")
+  status       MessageFlagStatus @default(OPEN)
+  reviewedById String?          @map("reviewed_by_id") @db.Uuid
+  reviewNote   String?          @map("review_note") @db.VarChar(1000)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  reviewedAt   DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  message      Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reviewedBy   User?            @relation("MessageFlagReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  @@unique([messageId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([reviewedById, reviewedAt])
+  @@map("message_flags")
+}

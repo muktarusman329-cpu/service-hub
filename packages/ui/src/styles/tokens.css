@@ -1,0 +1,79 @@
+:root {
+  color-scheme: light;
+  --brand-50: #EAF4FF;
+  --brand-100: #D3E8FF;
+  --brand-200: #A8D1FF;
+  --brand-300: #6FB3FF;
+  --brand-400: #3C9CFF;
+  --brand-500: #0A8DFF;
+  --brand-600: #0873D6;
+  --brand-700: #065AAB;
+  --brand-800: #0A4480;
+  --brand-900: #0B2F5A;
+  --accent-500: #5A4FC4;
+  --accent-700: #3F2F9E;
+
+  --canvas: #F5F5F5;
+  --surface: #FFFFFF;
+  --border: #E8E8E8;
+  --text-primary: #1F1F1F;
+  --text-secondary: #666666;
+  --neutral-muted: #999999;
+  --text-muted: #707070;
+
+  --success: #1FA971;
+  --success-soft: #E6F7EF;
+  --success-text: #087647;
+  --warning: #F59E0B;
+  --warning-soft: #FFF4DB;
+  --warning-text: #805300;
+  --danger: #F5333F;
+  --danger-soft: #FFECEE;
+  --danger-text: #B21E29;
+  --info: var(--brand-500);
+  --on-solid: #FFFFFF;
+  --danger-on-solid: #101010;
+  --swatch-dark-ink: #1F1F1F;
+  --swatch-light-surface: #FFFFFF;
+  --swatch-text-muted-light: #707070;
+  --swatch-neutral-muted-light: #999999;
+  --swatch-success-text-light: #087647;
+  --swatch-warning-text-light: #805300;
+  --swatch-danger-text-light: #B21E29;
+  --canvas-light: #F5F5F5;
+  --surface-light: #FFFFFF;
+  --success-soft-light: #E6F7EF;
+  --warning-soft-light: #FFF4DB;
+  --danger-soft-light: #FFECEE;
+
+  --focus-ring: var(--brand-500);
+  --link: var(--brand-700);
+  --link-on-brand-soft: var(--brand-700);
+  --selected-bg: var(--brand-50);
+  --header-band: var(--brand-700);
+  --radius-card: 8px;
+  --radius-control: 8px;
+  --shadow-card: 0 1px 2px rgb(31 31 31 / 4%);
+}
+
+.dark {
+  color-scheme: dark;
+  --canvas: #0F1720;
+  --surface: #16212E;
+  --border: #243244;
+  --text-primary: #F3F4F6;
+  --text-secondary: #B6C0CC;
+  --neutral-muted: #9AA8B8;
+  --text-muted: #9AA8B8;
+  --success-soft: #183329;
+  --success-text: #79DEAE;
+  --warning-soft: #382E19;
+  --warning-text: #FFD27A;
+  --danger-soft: #3A2026;
+  --danger-text: #FF9FA6;
+  --focus-ring: var(--brand-300);
+  --link: var(--brand-300);
+  --link-on-brand-soft: var(--brand-200);
+  --selected-bg: #152B3F;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 18%);
+}

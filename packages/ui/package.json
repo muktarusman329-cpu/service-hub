@@ -1,0 +1,9 @@
+{
+  "name": "@servicehub/ui",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { "./globals.css": "./src/styles/globals.css", "./components": "./src/components/index.tsx" },
+  "peerDependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" },
+  "devDependencies": { "@types/react": "^19.1.16" }
+}
