@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { MarketListing, MarketListingCategory } from "@servicehub/shared/api-client";
+import { useMarketplaceListings } from "@servicehub/shared/hooks/use-marketplace";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 const categories: Array<{ value: MarketListingCategory | ""; label: string }> = [
   { value: "", label: "Everything" },
   { value: "clothing", label: "Clothing & style" },
@@ -36,37 +36,12 @@ function formatPrice(priceKobo: number) {
 }
 
 export function MarketplaceBrowser() {
-  const [listings, setListings] = useState<MarketListing[]>([]);
   const [category, setCategory] = useState<MarketListingCategory | "">("");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const params = new URLSearchParams({ city: "minna" });
-    if (category) params.set("category", category);
-    if (search.trim()) params.set("q", search.trim());
-    setLoading(true);
-    setError("");
-
-    void fetch(`${API}/marketplace/listings?${params}`, { signal: controller.signal, cache: "no-store" })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : "Marketplace listings could not be loaded.");
-        return body as { items: MarketListing[] };
-      })
-      .then((body) => setListings(body.items))
-      .catch((cause: unknown) => {
-        if (cause instanceof DOMException && cause.name === "AbortError") return;
-        setError(cause instanceof Error ? cause.message : "Marketplace listings could not be loaded.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [category, search]);
+  const { data: listings = [], isLoading, isError, error, refetch } = useMarketplaceListings({
+    ...(category ? { category } : {}),
+    ...(search.trim() ? { query: search.trim() } : {}),
+  });
 
   return (
     <>
@@ -105,8 +80,8 @@ export function MarketplaceBrowser() {
           <div><span className="landing-kicker">SHOP LOCAL, GIVE THINGS ANOTHER LIFE</span><h2>Find your next good thing</h2></div>
           <label className="marketplace-search"><span className="sr-only">Search listings</span><span aria-hidden="true">⌕</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the market" /></label>
         </div>
-        {loading ? <div className="marketplace-state" role="status">Finding good things in Minna…</div>
-          : error ? <div className="marketplace-state marketplace-state-error" role="alert"><strong>Marketplace is unavailable right now.</strong><span>{error}</span><span>Check the ServiceHub API is running, then refresh this page.</span></div>
+        {isLoading ? <div className="marketplace-state" role="status">Finding good things in Minna…</div>
+          : isError ? <div className="marketplace-state marketplace-state-error" role="alert"><strong>Marketplace is unavailable right now.</strong><span>{error instanceof Error ? error.message : "Listings could not be loaded."}</span><button type="button" className="button button-secondary" onClick={() => void refetch()}>Try again</button></div>
             : listings.length ? (
               <div className="marketplace-listing-grid">
                 {listings.map((listing) => (
@@ -123,7 +98,7 @@ export function MarketplaceBrowser() {
             ) : (
               <div className="marketplace-state marketplace-empty">
                 <span aria-hidden="true">✳</span><h3>The market is just getting started.</h3>
-                <p>Be among the first to share a good find with Minna.</p>
+                <p>No approved listings match these filters. Try another category or share a good find.</p>
                 <Link href="/marketplace/sell" className="button button-primary">List your first item</Link>
               </div>
             )}

@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import type { MarketListing } from "@servicehub/shared/api-client";
+import { useMarketplaceListing, useMarkMarketplaceListingSold } from "@servicehub/shared/hooks/use-marketplace";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
 const categoryLabels: Record<MarketListing["category"], string> = {
   clothing: "Clothing & style",
   "home-goods": "Home & kitchen",
@@ -28,32 +27,19 @@ const categoryArt: Record<MarketListing["category"], string> = {
   other: "✦",
 };
 
+function formatPrice(priceKobo: number) {
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(priceKobo / 100);
+}
+
 export function MarketplaceListingDetail({ id }: { id: string }) {
-  const [listing, setListing] = useState<MarketListing | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: listing, isLoading, isError, error, refetch } = useMarketplaceListing(id);
+  const markSold = useMarkMarketplaceListingSold();
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch(`${API}/marketplace/listings/${encodeURIComponent(id)}`, { signal: controller.signal, cache: "no-store" })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : "This listing could not be loaded.");
-        return body as MarketListing;
-      })
-      .then(setListing)
-      .catch((cause: unknown) => {
-        if (cause instanceof DOMException && cause.name === "AbortError") return;
-        setError(cause instanceof Error ? cause.message : "This listing could not be loaded.");
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [id]);
-
-  if (loading) return <div className="marketplace-state" role="status">Loading this find…</div>;
-  if (error || !listing) return (
+  if (isLoading) return <div className="marketplace-state" role="status">Loading this find…</div>;
+  if (isError || !listing) return (
     <div className="marketplace-state marketplace-state-error" role="alert">
-      <strong>This listing isn’t available.</strong><span>{error || "It may have sold or been removed."}</span>
+      <strong>This listing isn’t available.</strong><span>{error instanceof Error ? error.message : "It may have sold or been removed."}</span>
+      <button type="button" className="button button-secondary" onClick={() => void refetch()}>Try again</button>
       <Link href="/marketplace" className="button button-secondary">Back to the marketplace</Link>
     </div>
   );
@@ -66,7 +52,7 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
         <article className="marketplace-detail-info">
           <span className="landing-kicker">{categoryLabels[listing.category]}</span>
           <h1>{listing.title}</h1>
-          <div className="marketplace-detail-price">{new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(listing.priceKobo / 100)}</div>
+          <div className="marketplace-detail-price">{formatPrice(listing.priceKobo)}</div>
           <div className="marketplace-detail-tags"><span>{conditionLabels[listing.condition]}</span><span>{listing.area.name}, {listing.city.name}</span></div>
           <div className="marketplace-detail-rule" />
           <h2>About this item</h2>
@@ -75,6 +61,15 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
             <span className="marketplace-seller-avatar" aria-hidden="true">{(listing.seller.displayName || "Seller").slice(0, 1).toUpperCase()}</span>
             <div><span className="landing-kicker">LISTED BY</span><strong>{listing.seller.displayName || "ServiceHub seller"}</strong><span>{listing.area.name}, {listing.city.name}</span></div>
           </div>
+          {listing.seller.id === "seller-fatima" && (
+            <div className="marketplace-detail-actions">
+              <button type="button" className="button button-secondary" disabled={markSold.isPending} onClick={() => markSold.mutate(listing.id)}>
+                {markSold.isPending ? "Updating…" : "Mark my item sold"}
+              </button>
+              {markSold.isError && <p className="form-error" role="alert">{markSold.error.message}</p>}
+              {markSold.isSuccess && <p className="form-success" role="status">Marked sold. It is no longer visible in public search.</p>}
+            </div>
+          )}
           <div className="marketplace-detail-actions">
             <Link href={`/sign-in?next=${encodeURIComponent(`/marketplace/${listing.id}`)}`} className="button button-primary">Sign in to enquire</Link>
             <p>Meet locally and check the item before agreeing to buy. ServiceHub does not process payment for marketplace items.</p>

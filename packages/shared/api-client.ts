@@ -2,6 +2,12 @@
 export const MOCK_DATA_NOTICE = "DEMO: This is mock data for UI review only";
 
 export interface ApiClient {
+  getMarketplaceListings(filters?: MarketplaceFilters): Promise<MarketListing[]>;
+  getMarketplaceListing(id: string): Promise<MarketListing>;
+  getMyMarketplaceListings(): Promise<MarketListing[]>;
+  createMarketplaceListing(data: CreateMarketListingDto): Promise<MarketListing>;
+  reviewMarketplaceListing(id: string, status: "PUBLISHED" | "REJECTED"): Promise<MarketListing>;
+  markMarketplaceListingSold(id: string): Promise<MarketListing>;
   // Jobs
   getJobRequests(): Promise<JobRequest[]>;
   getJobRequest(id: string): Promise<JobRequest>;
@@ -37,6 +43,13 @@ export interface ApiClient {
   getWallet(): Promise<Wallet>;
   getTransactions(): Promise<Transaction[]>;
   requestPayout(data: PayoutDto): Promise<Payout>;
+  getPayments(): Promise<PaymentRecord[]>;
+  createPayment(bookingId: string, result: "SUCCEEDED" | "FAILED" | "CASH_DUE"): Promise<PaymentRecord>;
+  getReviews(): Promise<Review[]>;
+  createReview(data: CreateReviewDto): Promise<Review>;
+  getNotifications(): Promise<AppNotification[]>;
+  markNotificationRead(id: string): Promise<AppNotification>;
+  disputeBooking(id: string, reason: string): Promise<Booking>;
 }
 
 // Types (aligned with Zod schemas where they exist)
@@ -212,6 +225,21 @@ export interface MarketListing {
   area: { name: string };
 }
 
+export interface MarketplaceFilters {
+  category?: MarketListingCategory;
+  query?: string;
+  status?: MarketListingStatus;
+}
+
+export interface CreateMarketListingDto {
+  title: string;
+  description: string;
+  category: MarketListingCategory;
+  condition: MarketListingCondition;
+  priceKobo: number;
+  areaName: string;
+}
+
 export interface Wallet {
   id: string;
   balanceKobo: number;
@@ -235,6 +263,40 @@ export interface Payout {
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   createdAt: string;
   processedAt: string | null;
+}
+
+export interface PaymentRecord {
+  id: string;
+  bookingId: string;
+  amountKobo: number;
+  platformFeeKobo: number;
+  method: "ONLINE" | "CASH";
+  status: "PENDING" | "SUCCEEDED" | "FAILED" | "CASH_DUE";
+  receiptNumber: string | null;
+  createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  bookingId: string;
+  technicianName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface CreateReviewDto {
+  bookingId: string;
+  rating: number;
+  comment: string;
 }
 
 // DTOs

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { mockApiClient } from "@servicehub/shared/mock-api-client";
 
 export function DevStateSwitcher() {
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -30,6 +32,7 @@ export function DevStateSwitcher() {
                 onChange={(e) => {
                   setLoading(e.target.checked);
                   mockApiClient.setSimulations({ loading: e.target.checked });
+                  void queryClient.invalidateQueries();
                 }}
               />
               Loading (2s delay)
@@ -41,6 +44,7 @@ export function DevStateSwitcher() {
                 onChange={(e) => {
                   setError(e.target.checked);
                   mockApiClient.setSimulations({ error: e.target.checked });
+                  void queryClient.invalidateQueries();
                 }}
               />
               Error
@@ -52,6 +56,7 @@ export function DevStateSwitcher() {
                 onChange={(e) => {
                   setEmpty(e.target.checked);
                   mockApiClient.setSimulations({ empty: e.target.checked });
+                  void queryClient.invalidateQueries();
                 }}
               />
               Empty responses
