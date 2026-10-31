@@ -1,6 +1,6 @@
-import { Badge, Button, Card } from "@servicehub/ui/components";
 import { ProductShell } from "@/components/product-shell";
-export default function TechnicianPage() { return <ProductShell audience="Technician"><div className="page-heading"><div><div className="eyebrow">Technician workspace · Minna</div><h1>Your work, at a glance</h1><div className="subtle">A clear view of requests, jobs and earnings.</div></div><Button>Set availability</Button></div>
-  <div className="grid-4">{[["New requests","3","Across your service areas"],["Active jobs","2","Keep customers updated"],["This month","₦84,000","Sample earnings"],["Your profile","In progress","Finish setup to get listed"]].map(([label,value,note])=><Card key={label}><span className="metric-label">{label}</span><strong className="metric-value">{value}</strong><span className="metric-foot">{note}</span></Card>)}</div>
-  <div className="grid-2"><Card><div className="section-head"><h2>Nearby requests</h2><Badge tone="success">Example view</Badge></div><div className="list"><div className="list-row"><div><div className="list-title">Generator not starting</div><div className="subtle">Tunga · Near Mobil junction</div></div><Button tone="secondary">View</Button></div><hr className="divider"/><div className="list-row"><div><div className="list-title">Laptop running slowly</div><div className="subtle">Bosso · Gidan Kwano area</div></div><Button tone="secondary">View</Button></div></div></Card><Card><h2>Profile checklist</h2><p className="subtle">A complete profile helps customers feel confident choosing you.</p><div className="stack"><div className="list-row"><span>Skills and areas</span><Badge tone="success">Added</Badge></div><div className="list-row"><span>Identity check</span><Badge tone="warning">To review</Badge></div></div></Card></div>
-</ProductShell>; }
+import { TechnicianDashboard } from "@/components/technician-app-workspace";
+
+export default function TechnicianPage() {
+  return <ProductShell audience="Technician"><TechnicianDashboard /></ProductShell>;
+}

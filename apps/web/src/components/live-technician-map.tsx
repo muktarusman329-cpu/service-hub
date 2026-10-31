@@ -45,7 +45,7 @@ export function LiveTechnicianMap({
             key={point.areaName}
             center={[point.latitude, point.longitude]}
             radius={10}
-            pathOptions={{ color: "#ffffff", weight: 3, fillColor: "#1769aa", fillOpacity: 0.95 }}
+            pathOptions={{ color: "var(--surface)", weight: 3, fillColor: "var(--map-area)", fillOpacity: 0.95 }}
           >
             <Popup>
               <div className="map-popup">
@@ -64,7 +64,7 @@ export function LiveTechnicianMap({
           <CircleMarker
             center={[userLocation.latitude, userLocation.longitude]}
             radius={8}
-            pathOptions={{ color: "#ffffff", weight: 3, fillColor: "#e35d42", fillOpacity: 1 }}
+            pathOptions={{ color: "var(--surface)", weight: 3, fillColor: "var(--map-user)", fillOpacity: 1 }}
           >
             <Popup>Your approximate location</Popup>
           </CircleMarker>

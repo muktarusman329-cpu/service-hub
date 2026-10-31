@@ -51,6 +51,8 @@
   --link-on-brand-soft: var(--brand-700);
   --selected-bg: var(--brand-50);
   --header-band: var(--brand-700);
+  --map-area: var(--brand-600);
+  --map-user: var(--danger);
   --radius-card: 8px;
   --radius-control: 8px;
   --shadow-card: 0 1px 2px rgb(31 31 31 / 4%);
