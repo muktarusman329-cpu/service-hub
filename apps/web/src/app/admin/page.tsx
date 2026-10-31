@@ -1,8 +1,4 @@
-import { Badge, Card } from "@servicehub/ui/components";
 import { ProductShell } from "@/components/product-shell";
 import { AdminGate } from "@/components/admin-gate";
-export default function AdminPage() { return <AdminGate><ProductShell audience="Admin"><div className="page-heading"><div><div className="eyebrow">Launch overview · Minna</div><h1>ServiceHub at a glance</h1><div className="subtle">A snapshot of activity across the launch areas.</div></div><Badge>Demo figures</Badge></div>
-  <div className="grid-4">{[["Signups","248","Last 30 days"],["Active technicians","36","Across 9 launch areas"],["Jobs completed","112","Across 4 categories"],["Commission","₦186,400","Sample total"]].map(([label,value,note], index)=><Card key={label} className={index === 3 ? "metric-accent" : ""}><span className="metric-label">{label}</span><strong className="metric-value">{value}</strong><span className="metric-foot">{note}</span></Card>)}</div>
-  <div className="grid-2"><Card><div className="section-head"><h2>Active technicians by area</h2><span className="subtle">Sample counts</span></div><div className="stack">{[["Bosso","10",82],["Tunga","8",68],["Chanchaga","6",52],["Maitumbi","5",42],["Kpakungu","4",32]].map(([name,count,width])=><div key={name}><div className="list-row" style={{ marginBottom: 5 }}><span>{name}</span><span className="subtle">{count}</span></div><div className="bar-track"><div className="bar" style={{ width: `${width}%` }} /></div></div>)}</div></Card>
-  <Card><div className="section-head"><h2>Needs attention</h2><Badge tone="warning">2 items</Badge></div><div className="list"><div><div className="list-title">Technician applications</div><div className="subtle">3 profiles are awaiting review</div></div><hr className="divider"/><div><div className="list-title">Open disputes</div><div className="subtle">1 booking needs a decision</div></div></div></Card></div>
-</ProductShell></AdminGate>; }
+import { AdminMockWorkspace } from "@/components/admin-mock-workspace";
+export default function AdminPage() { return <AdminGate><ProductShell audience="Admin"><AdminMockWorkspace kind="overview" /></ProductShell></AdminGate>; }
