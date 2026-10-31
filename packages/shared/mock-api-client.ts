@@ -214,6 +214,7 @@ let messages: Map<string, Message[]> = new Map([["conversation-active", [
 let technicians: TechnicianPublic[] = [];
 let paymentRecords: PaymentRecord[] = [
   { id: "payment-previous", bookingId: "booking-active", amountKobo: 1200000, platformFeeKobo: 120000, method: "ONLINE", status: "SUCCEEDED", receiptNumber: "SH-2026-001", createdAt: "2026-10-28T09:20:00.000Z" },
+  { id: "payment-failed", bookingId: "booking-active", amountKobo: 1200000, platformFeeKobo: 120000, method: "ONLINE", status: "FAILED", receiptNumber: null, createdAt: "2026-10-28T09:10:00.000Z" },
   { id: "payment-cash", bookingId: "booking-review", amountKobo: 2500000, platformFeeKobo: 250000, method: "CASH", status: "CASH_DUE", receiptNumber: null, createdAt: "2026-10-25T10:05:00.000Z" },
   { id: "payment-pending", bookingId: "booking-confirm", amountKobo: 1800000, platformFeeKobo: 180000, method: "ONLINE", status: "PENDING", receiptNumber: null, createdAt: "2026-10-29T08:00:00.000Z" },
 ];

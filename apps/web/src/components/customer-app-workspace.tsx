@@ -208,13 +208,14 @@ export function BookingDetail({ id }: { id: string }) {
       <div className="customer-quick-links">
         {booking.paymentMethod === "ONLINE" && <Link className="button button-secondary" href={`/app/payments/checkout/${booking.id}`}>Payment options and receipt</Link>}
         <Link className="button button-secondary" href="/app/messages">Open chat</Link>
-        {!allDone && <Button tone="secondary" disabled={reveal.isPending} onClick={async () => setContact((await reveal.mutateAsync(id)).phoneNumber)}>{reveal.isPending ? "Loading contact…" : "Reveal technician contact"}</Button>}
+        {!allDone && <Button tone="secondary" disabled={reveal.isPending} onClick={() => reveal.mutate(id, { onSuccess: (details) => setContact(details.phoneNumber) })}>{reveal.isPending ? "Loading contact…" : "Reveal technician contact"}</Button>}
         {booking.status === "COMPLETED_PENDING_CONFIRMATION" && <Button disabled={status.isPending} onClick={() => status.mutate({ id, data: { status: "COMPLETED", idempotencyKey: makeKey() } })}>Confirm completion</Button>}
         {!allDone && <Button tone="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate({ id, data: { idempotencyKey: makeKey(), reasonCode: "USER_REQUEST", reason: "Cancelled in the demo app." } })}>Cancel booking</Button>}
       </div>
       {contact && <p className="form-success" role="status">Technician phone: {contact}</p>}
       {actionError && <p className="error-text" role="alert">{actionError.message}</p>}
       {!allDone && <form className="stack dispute-form" onSubmit={(event) => { event.preventDefault(); dispute.mutate({ id, reason: reason.trim() }); }}><label className="field"><span className="field-label">Need help with this booking?</span><textarea className="input" minLength={10} required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Tell us what went wrong before opening a demo dispute." /></label><Button tone="secondary" type="submit" disabled={dispute.isPending || reason.trim().length < 10}>Open dispute</Button></form>}
+      {dispute.isSuccess && <p className="form-success" role="status">Your demo dispute has been opened.</p>}
     </Card>
   </div>;
 }
@@ -334,6 +335,49 @@ export function ReviewsWorkspace() {
     </form> : <p className="subtle">Reviews are available after a booking is complete, and each completed booking can be reviewed once.</p>}</Card>
     {reviews.data?.map((review) => <Card key={review.id}><div className="section-head"><h2>{review.technicianName}</h2><Badge tone="success">{review.rating} / 5</Badge></div><p>{review.comment}</p><p className="subtle">{new Date(review.createdAt).toLocaleDateString("en-NG")}</p></Card>)}
   </div>;
+}
+
+export function CustomerSupport() {
+  const [submitted, setSubmitted] = useState(false);
+  return (
+    <div className="customer-support-layout">
+      <Card>
+        <h2>Report a problem</h2>
+        <p className="subtle">Let us know what went wrong. This form is a local demo and does not send a real support ticket.</p>
+        <form className="stack" onSubmit={(event) => { event.preventDefault(); setSubmitted(true); }}>
+          <label className="field">
+            <span className="field-label">What type of problem?</span>
+            <select className="input" required defaultValue="">
+              <option value="" disabled>Choose a problem type</option>
+              <option value="booking">Booking issue</option>
+              <option value="payment">Payment problem</option>
+              <option value="technician">Technician behavior</option>
+              <option value="technical">Technical issue</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Booking ID (if applicable)</span>
+            <input className="input" placeholder="Enter booking ID" />
+          </label>
+          <label className="field">
+            <span className="field-label">Describe the problem</span>
+            <textarea className="input" rows={5} required minLength={20} maxLength={2000} placeholder="Tell us what happened and what you expected" />
+          </label>
+          <Button type="submit">Submit report</Button>
+          {submitted && <p className="form-success" role="status">Demo report submitted. No support ticket was sent.</p>}
+        </form>
+      </Card>
+      <Card>
+        <h2>Need help right away?</h2>
+        <p className="subtle">Contact our support team directly.</p>
+        <div className="stack">
+          <p>Email: support@servicehub.ng</p>
+          <p>Phone: +234 800 123 4567 (Mon-Fri, 8am-6pm WAT)</p>
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 export function NotificationsWorkspace() {

@@ -697,3 +697,76 @@ h2 { margin:0; font-size:16px; letter-spacing:-.015em; }
  .marketplace-seller-intro h1,.marketplace-sell-signin h1 { font-size:30px; }
  .marketplace-seller-form,.marketplace-seller-tip,.marketplace-my-listings { padding:17px; }
 }
+.customer-workspace,.customer-support-layout { display:grid; gap:16px; }
+.customer-welcome { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:22px; border:1px solid var(--border); border-radius:var(--radius-card); background:var(--surface); }
+.customer-welcome h1 { font-size:26px; }
+.customer-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.customer-summary-grid .card { display:grid; align-content:start; gap:7px; }
+.customer-summary-grid .metric-value { margin:0; }
+.customer-quick-links,.request-form-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.request-form-actions { justify-content:space-between; margin-top:18px; }
+.progress-track { height:7px; margin:4px 0 18px; overflow:hidden; border-radius:99px; background:var(--brand-50); }
+.dark .progress-track { background:var(--selected-bg); }
+.progress-track span { display:block; height:100%; border-radius:inherit; background:var(--brand-600); transition:width .18s ease; }
+.check-row { display:flex; align-items:center; gap:9px; color:var(--text-primary); }
+.timeline { display:grid; gap:9px; margin:18px 0; padding-left:18px; color:var(--text-secondary); }
+.quote-card { margin-top:13px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-control); }
+.quote-card > p { margin:8px 0; }
+.booking-timeline { display:grid; gap:0; margin:20px 0 0; padding:0; list-style:none; }
+.booking-timeline li { position:relative; display:grid; grid-template-columns:12px minmax(0,1fr) auto; gap:10px; padding-bottom:18px; }
+.booking-timeline li:not(:last-child)::before { position:absolute; top:12px; bottom:0; left:4px; width:1px; background:var(--border); content:""; }
+.booking-timeline li > div { display:grid; gap:3px; }
+.booking-timeline li > div span,.booking-timeline li > div p { color:var(--text-secondary); font-size:12px; }
+.booking-timeline li > div p { margin:3px 0 0; }
+.payment-breakdown { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px 18px; margin-top:20px; }
+.payment-breakdown span { color:var(--text-secondary); }
+.payment-breakdown strong { text-align:right; font-variant-numeric:tabular-nums; }
+.payment-layout { align-items:start; }
+.payments-in-app-banner { display:grid; gap:4px; padding:14px 16px; border:1px solid var(--brand-200); border-radius:var(--radius-card); background:var(--brand-50); color:var(--link-on-brand-soft); }
+.payments-in-app-banner span { font-size:12px; }
+.chat-messages { display:flex; flex-direction:column; gap:10px; min-height:180px; padding:10px 0 18px; }
+.chat-message { max-width:min(82%,520px); padding:10px 13px; border:1px solid var(--border); border-radius:12px 12px 12px 3px; background:var(--canvas); }
+.chat-message p { margin:0; overflow-wrap:anywhere; }
+.chat-message span { display:block; margin-top:5px; color:var(--text-muted); font-size:10px; text-align:right; }
+.chat-message-own { align-self:flex-end; border-color:var(--brand-200); border-radius:12px 12px 3px 12px; background:var(--brand-50); }
+.chat-send-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px; align-items:center; }
+.customer-support-layout { grid-template-columns:minmax(0,1.3fr) minmax(230px,1fr); align-items:start; }
+.customer-support-layout .stack > p { margin:0; overflow-wrap:anywhere; }
+.dev-screens-page { min-height:100vh; padding:28px 20px 56px; background:var(--canvas); color:var(--text-primary); }
+.dev-screens-content { width:min(100%,900px); margin:0 auto; }
+.dev-status-legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
+.dev-screens-group { margin:24px 0; }
+.dev-screens-group > h2 { margin:0 0 10px; }
+.dev-screens-list { overflow:hidden; border:1px solid var(--border); border-radius:var(--radius-card); background:var(--surface); }
+.dev-screen-row { display:flex; align-items:center; justify-content:space-between; gap:14px; min-height:58px; padding:10px 14px; border-bottom:1px solid var(--border); }
+.dev-screen-row:last-child { border-bottom:0; }
+.dev-screen-copy { display:grid; min-width:0; gap:2px; }
+.dev-screen-copy a,.dev-screen-copy > span { color:var(--text-primary); font-weight:650; }
+.dev-screen-copy a:hover { color:var(--link); }
+.dev-screen-copy code { color:var(--text-secondary); font-size:11px; overflow-wrap:anywhere; }
+.screen-status { display:inline-flex; flex:none; align-items:center; min-height:25px; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.02em; }
+.screen-status-not-started { background:var(--canvas); color:var(--text-secondary); }
+.screen-status-in-progress { background:var(--warning-soft); color:var(--warning-text); }
+.screen-status-done { background:var(--success-soft); color:var(--success-text); }
+@media(max-width:850px) {
+ .customer-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .customer-summary-grid .card:last-child { grid-column:1/-1; }
+ .customer-support-layout { grid-template-columns:1fr; }
+}
+@media(max-width:600px) {
+ .customer-welcome { align-items:stretch; flex-direction:column; padding:17px; }
+ .customer-welcome h1 { font-size:23px; }
+ .customer-welcome > .button { width:100%; }
+ .customer-summary-grid { grid-template-columns:1fr; }
+ .customer-summary-grid .card:last-child { grid-column:auto; }
+ .customer-quick-links { align-items:stretch; flex-direction:column; }
+ .customer-quick-links > .button { width:100%; }
+ .request-form-actions { align-items:stretch; }
+ .request-form-actions > .button { flex:1; }
+ .payment-layout,.detail-layout,.grid-2 { grid-template-columns:1fr; }
+ .chat-send-form { grid-template-columns:minmax(0,1fr); }
+ .chat-send-form .button { width:100%; }
+ .dev-screens-page { padding:20px 12px 40px; }
+ .dev-screen-row { align-items:flex-start; flex-direction:column; gap:7px; padding:12px; }
+ .screen-status { align-self:flex-start; }
+}
