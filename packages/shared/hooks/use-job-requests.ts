@@ -27,6 +27,18 @@ export function useCreateJobRequest() {
   });
 }
 
+export function useUpdateJobRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof mockApiClient.updateJobRequest>[1] }) =>
+      mockApiClient.updateJobRequest(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["job-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["job-request", id] });
+    },
+  });
+}
+
 export function useCancelJobRequest() {
   const queryClient = useQueryClient();
   return useMutation({

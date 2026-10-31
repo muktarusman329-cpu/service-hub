@@ -3,20 +3,30 @@ export const MOCK_DATA_NOTICE = "DEMO: This is mock data for UI review only";
 
 export interface ApiClient {
   getMarketplaceListings(filters?: MarketplaceFilters): Promise<MarketListing[]>;
-  getMarketplaceListing(id: string): Promise<MarketListing>;
+  getMarketplaceListing(id: string): Promise<MarketListing | null>;
   getMyMarketplaceListings(): Promise<MarketListing[]>;
   createMarketplaceListing(data: CreateMarketListingDto): Promise<MarketListing>;
   reviewMarketplaceListing(id: string, status: "PUBLISHED" | "REJECTED"): Promise<MarketListing>;
   markMarketplaceListingSold(id: string): Promise<MarketListing>;
+  updateMarketplaceListing(id: string, data: UpdateMarketListingDto): Promise<MarketListing>;
+  getMarketplaceSellerProfile(id: string): Promise<MarketSellerProfile | null>;
+  getMarketplaceOrders(role: "BUYER" | "SELLER"): Promise<MarketOrder[]>;
+  createMarketplaceOrder(listingId: string): Promise<MarketOrder>;
+  updateMarketplaceOrder(id: string, status: "ACCEPTED" | "DECLINED" | "COMPLETED" | "CANCELLED"): Promise<MarketOrder>;
+  getSavedMarketplaceListings(): Promise<MarketListing[]>;
+  toggleSavedMarketplaceListing(id: string): Promise<boolean>;
   // Jobs
   getJobRequests(): Promise<JobRequest[]>;
   getJobRequest(id: string): Promise<JobRequest>;
   createJobRequest(data: CreateJobRequestDto): Promise<JobRequest>;
+  updateJobRequest(id: string, data: UpdateJobRequestDto): Promise<JobRequest>;
   cancelJobRequest(id: string, data: CancelDto): Promise<void>;
   
   // Quotes
   getQuotes(requestId: string): Promise<Quote[]>;
   createQuote(requestId: string, data: CreateQuoteDto): Promise<Quote>;
+  updateQuote(quoteId: string, data: Partial<CreateQuoteDto>): Promise<Quote>;
+  withdrawQuote(quoteId: string): Promise<Quote>;
   acceptQuote(quoteId: string, data: AcceptQuoteDto): Promise<Booking>;
   
   // Bookings
@@ -50,6 +60,12 @@ export interface ApiClient {
   getNotifications(): Promise<AppNotification[]>;
   markNotificationRead(id: string): Promise<AppNotification>;
   disputeBooking(id: string, reason: string): Promise<Booking>;
+  getTechnicianWorkspace(): Promise<TechnicianWorkspace>;
+  updateTechnicianWorkspace(action: TechnicianWorkspaceAction): Promise<TechnicianWorkspace>;
+  getAdminWorkspace(): Promise<AdminWorkspace>;
+  updateAdminWorkspace(action: AdminWorkspaceAction): Promise<AdminWorkspace>;
+  getAccountWorkspace(): Promise<AccountWorkspace | null>;
+  updateAccountWorkspace(action: AccountWorkspaceAction): Promise<AccountWorkspace>;
 }
 
 // Types (aligned with Zod schemas where they exist)
@@ -70,6 +86,7 @@ export interface JobRequest {
   createdAt: string;
   activeQuoteCount: number;
   booking: { id: string; status: string } | null;
+  mediaKeys?: string[];
 }
 
 export interface Quote {
@@ -163,6 +180,9 @@ export interface Message {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
+  attachments?: string[];
+  deliveryStatus?: "PENDING" | "SENT" | "FAILED";
+  readAt?: string | null;
 }
 
 export interface MessagePage {
@@ -223,6 +243,7 @@ export interface MarketListing {
   seller: { id: string; displayName: string | null };
   city: { name: string; slug: string };
   area: { name: string };
+  mediaKeys?: string[];
 }
 
 export interface MarketplaceFilters {
@@ -238,6 +259,30 @@ export interface CreateMarketListingDto {
   condition: MarketListingCondition;
   priceKobo: number;
   areaName: string;
+  mediaKeys?: string[];
+}
+
+export type UpdateMarketListingDto = Partial<CreateMarketListingDto>;
+
+export interface MarketSellerProfile {
+  id: string;
+  displayName: string;
+  areaName: string;
+  memberSince: string;
+  listingCount: number;
+  listings: MarketListing[];
+}
+
+export interface MarketOrder {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  priceKobo: number;
+  status: "REQUESTED" | "ACCEPTED" | "DECLINED" | "COMPLETED" | "CANCELLED";
+  buyer: { id: string; displayName: string };
+  seller: { id: string; displayName: string };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Wallet {
@@ -319,6 +364,15 @@ export interface CreateJobRequestDto {
   mediaKeys?: string[];
 }
 
+export interface UpdateJobRequestDto {
+  nearestLandmark?: string;
+  description?: string;
+  isAsap?: boolean;
+  preferredStartAt?: string | null;
+  budgetMaxKobo?: number | null;
+  mediaKeys?: string[];
+}
+
 export interface CreateQuoteDto {
   priceKobo: number;
   laborKobo?: number;
@@ -363,3 +417,127 @@ export interface PayoutDto {
   bankAccountId: string;
   amountKobo: number;
 }
+
+export type TechnicianApplicationStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "CHANGES_REQUESTED" | "APPROVED" | "REJECTED" | "SUSPENDED";
+
+export interface TechnicianApplication {
+  id: string;
+  status: TechnicianApplicationStatus;
+  step: number;
+  displayName: string;
+  bio: string;
+  skills: string[];
+  areas: string[];
+  availability: string[];
+  portfolio: string[];
+  kycConsent: boolean;
+  kycDocumentName: string | null;
+  guarantorName: string | null;
+  reviewNote: string | null;
+  submittedAt: string | null;
+}
+
+export interface TimeOffBlock {
+  id: string;
+  startAt: string;
+  endAt: string;
+  reason: string;
+}
+
+export interface TechnicianWorkspace {
+  application: TechnicianApplication;
+  timeOff: TimeOffBlock[];
+  cashCommissionOwedKobo: number;
+  bankAccounts: Array<{ id: string; bankName: string; accountName: string; maskedNumber: string; isDefault: boolean }>;
+  payouts: Payout[];
+  settings: { notificationsEnabled: boolean; serviceAreas: string[] };
+}
+
+export type TechnicianWorkspaceAction =
+  | { type: "save-application"; patch: Partial<Omit<TechnicianApplication, "id">> }
+  | { type: "submit-application" }
+  | { type: "add-time-off"; block: Omit<TimeOffBlock, "id"> }
+  | { type: "remove-time-off"; id: string }
+  | { type: "update-settings"; notificationsEnabled: boolean }
+  | { type: "top-up-wallet"; amountKobo: number }
+  | { type: "add-bank-account"; bankName: string; accountName: string; accountNumber: string };
+
+export interface AdminUserRecord {
+  id: string;
+  displayName: string;
+  email: string;
+  role: "CUSTOMER" | "TECHNICIAN" | "ADMIN";
+  status: "ACTIVE" | "SUSPENDED";
+  areaName: string;
+  joinedAt: string;
+}
+
+export interface AdminFlaggedMessage {
+  id: string;
+  senderName: string;
+  message: string;
+  signal: string;
+  status: "OPEN" | "DISMISSED" | "ACTIONED";
+}
+
+export interface AdminDispute {
+  id: string;
+  bookingId: string;
+  customerName: string;
+  technicianName: string;
+  reason: string;
+  status: "OPEN" | "RESOLVED";
+  resolution: string | null;
+  refundKobo: number;
+}
+
+export interface AdminWorkspace {
+  users: AdminUserRecord[];
+  flaggedMessages: AdminFlaggedMessage[];
+  disputes: AdminDispute[];
+  commissionPercent: number;
+  settings: {
+    cancellationWindowHours: number;
+    autoCompleteHours: number;
+    maxActiveBookings: number;
+    guarantorRequired: boolean;
+    retentionDays: number;
+    otpChannel: "SMS" | "EMAIL";
+    twoFactorEnabled: boolean;
+  };
+  catalogEnabled: Record<string, boolean>;
+  auditLog: Array<{ id: string; action: string; actor: string; reason: string; createdAt: string }>;
+}
+
+export type AdminWorkspaceAction =
+  | { type: "set-user-status"; userId: string; status: AdminUserRecord["status"]; reason: string }
+  | { type: "review-technician"; applicationId: string; status: TechnicianApplicationStatus; note: string }
+  | { type: "reveal-kyc"; applicationId: string; reason: string }
+  | { type: "resolve-flag"; flagId: string; status: "DISMISSED" | "ACTIONED"; reason: string }
+  | { type: "resolve-dispute"; bookingId: string; resolution: string; refundKobo: number }
+  | { type: "set-commission"; percent: number; reason: string }
+  | { type: "save-admin-settings"; settings: AdminWorkspace["settings"] }
+  | { type: "toggle-catalog"; itemId: string; enabled: boolean };
+
+export interface AccountWorkspace {
+  profile: { displayName: string; email: string; phone: string } | null;
+  addresses: Array<{ id: string; label: string; areaName: string; landmark: string; isDefault: boolean }>;
+  notificationPreferences: {
+    pushJobUpdates: boolean;
+    pushMessages: boolean;
+    pushPromotions: boolean;
+    emailJobUpdates: boolean;
+    emailReceipts: boolean;
+    smsReminders: boolean;
+  };
+  settings: { language: "en" | "ha"; linkedGoogle: boolean };
+  onboarding: { accountType: "USER" | "TECHNICIAN" | "BOTH" | null; step: 1 | 2 | 3; complete: boolean };
+}
+
+export type AccountWorkspaceAction =
+  | { type: "save-profile"; profile: NonNullable<AccountWorkspace["profile"]> }
+  | { type: "add-address"; address: Omit<AccountWorkspace["addresses"][number], "id" | "isDefault"> }
+  | { type: "remove-address"; addressId: string }
+  | { type: "save-notifications"; preferences: AccountWorkspace["notificationPreferences"] }
+  | { type: "save-settings"; settings: AccountWorkspace["settings"] }
+  | { type: "save-onboarding"; accountType?: "USER" | "TECHNICIAN" | "BOTH"; step?: 1 | 2 | 3; complete?: boolean };

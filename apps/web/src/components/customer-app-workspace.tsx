@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Booking, JobRequest, PaymentRecord, Quote } from "@servicehub/shared/api-client";
+import { messages } from "@servicehub/shared/messages/en";
 import { minnaAreas } from "@servicehub/shared/fixtures/areas";
 import { useBookings, useBooking, useCancelBooking, useChangeBookingStatus, useRevealContact } from "@servicehub/shared/hooks/use-bookings";
-import { useCancelJobRequest, useCreateJobRequest, useJobRequest, useJobRequests } from "@servicehub/shared/hooks/use-job-requests";
+import { useCancelJobRequest, useCreateJobRequest, useJobRequest, useJobRequests, useUpdateJobRequest } from "@servicehub/shared/hooks/use-job-requests";
 import { useAcceptQuote, useQuotes } from "@servicehub/shared/hooks/use-quotes";
 import { useConversations, useMessages, useSendMessage } from "@servicehub/shared/hooks/use-chat";
 import { useCatalog } from "@servicehub/shared/hooks/use-catalog";
@@ -48,7 +49,7 @@ export function CustomerDashboard() {
           {latestBooking ? <><div className="eyebrow">{latestBooking.service.name} · {latestBooking.area.name}</div><h3>{latestBooking.technician.displayName}</h3><p className="subtle">{new Date(latestBooking.scheduledStartAt).toLocaleString("en-NG")}</p><Badge tone="info">{niceStatus(latestBooking.status)}</Badge><p><Link className="button button-secondary" href={`/app/bookings/${latestBooking.id}`}>Track booking</Link></p></> : <p className="subtle">Your confirmed bookings will appear here.</p>}
         </Card>
       </div>
-      <Card><h2>Keep every update in the app</h2><p className="subtle">Compare quotes, confirm job details and keep payment records together in ServiceHub.</p><div className="customer-quick-links"><Link className="button button-secondary" href="/app/messages">Messages</Link><Link className="button button-secondary" href="/app/payments">Payments and receipts</Link><Link className="button button-secondary" href="/marketplace">Browse local finds</Link></div></Card>
+      <Card><h2>Keep every update in the app</h2><p className="subtle">Compare quotes, confirm job details and keep payment records together in ServiceHub.</p><div className="customer-quick-links"><Link className="button button-secondary" href="/app/messages">Messages</Link><Link className="button button-secondary" href="/app/payments">Payments and receipts</Link><Link className="button button-secondary" href="/app/reviews">Reviews</Link><Link className="button button-secondary" href="/app/support">Report a problem</Link><Link className="button button-secondary" href="/marketplace">Browse local finds</Link></div></Card>
     </div>
   );
 }
@@ -64,6 +65,7 @@ export function RequestFlow({ directTechnicianId }: { directTechnicianId?: strin
   const [description, setDescription] = useState("");
   const [asap, setAsap] = useState(true);
   const [budget, setBudget] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
   const allServices = catalog.data?.services.filter((service) => service.isActive) ?? [];
 
   if (catalog.isLoading) return <LoadError loading retry={() => void catalog.refetch()} />;
@@ -84,8 +86,9 @@ export function RequestFlow({ directTechnicianId }: { directTechnicianId?: strin
       ...(budget ? { budgetMaxKobo: Math.round(Number(budget) * 100) } : {}),
       urgency: "STANDARD",
       clientIdempotencyKey: makeKey(),
+      mediaKeys: photos.map((photo) => photo.name),
       });
-      router.push(`/app/jobs/${request.id}`);
+      router.push(`/app/jobs/success/${request.id}`);
     } catch {
       return;
     }
@@ -106,6 +109,7 @@ export function RequestFlow({ directTechnicianId }: { directTechnicianId?: strin
         </div>}
         {step === 3 && <div className="stack">
           <label className="field"><span className="field-label">Describe the job</span><textarea className="input" rows={5} required minLength={20} maxLength={3000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What happened? What would you like the technician to check?" /></label>
+          <label className="field"><span className="field-label">{messages.userApp.photosLabel}</span><input className="input" type="file" accept="image/*" multiple onChange={(event) => setPhotos(Array.from(event.target.files ?? []).slice(0, 5))} /><span className="field-hint">{messages.userApp.photosHelp}</span>{photos.map((photo) => <span className="field-hint" key={`${photo.name}-${photo.size}`}>{photo.name}</span>)}</label>
           <p className="subtle">Requesting: {currentService?.name} · {minnaAreas.find((area) => area.id === areaId)?.name} · {asap ? "As soon as possible" : "Time to arrange"}</p>
         </div>}
         {createRequest.isError && <p className="error-text" role="alert">{createRequest.error.message}</p>}
@@ -135,12 +139,24 @@ export function MyRequests() {
   ))}</div> : <Card><h2>No requests yet</h2><p className="subtle">Start by choosing a service and telling us where you need help.</p><Link className="button" href="/app/jobs/new">Request a service</Link></Card>;
 }
 
+export function RequestSuccess({ id }: { id: string }) {
+  const query = useJobRequest(id);
+  if (query.isLoading || query.isError) return <LoadError loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
+  if (!query.data) return <Card><h2>Request unavailable</h2><p className="subtle">Return to your requests and open another item.</p><Link className="button button-secondary" href="/app/jobs">My requests</Link></Card>;
+  return <Card><Badge tone="success">{messages.userApp.requestSent}</Badge><h2>{query.data.service.name} · {query.data.area.name}</h2><p>{messages.userApp.requestSentDescription}</p><p className="subtle">{query.data.nearestLandmark} · {query.data.activeQuoteCount} quote(s) ready</p><div className="customer-quick-links"><Link className="button" href={`/app/jobs/${query.data.id}`}>Open request and quotes</Link><Link className="button button-secondary" href="/app/jobs">My requests</Link></div></Card>;
+}
+
 export function RequestAndQuotes({ id }: { id: string }) {
   const router = useRouter();
   const request = useJobRequest(id);
   const quotes = useQuotes(id);
   const accept = useAcceptQuote();
   const cancel = useCancelJobRequest();
+  const update = useUpdateJobRequest();
+  const [editing, setEditing] = useState(false);
+  const [editLandmark, setEditLandmark] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [cancelReason, setCancelReason] = useState("Changed my plans");
   const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "CASH">("ONLINE");
   if (request.isLoading || quotes.isLoading) return <LoadError loading retry={() => { void request.refetch(); void quotes.refetch(); }} />;
   if (request.isError) return <LoadError loading={false} error={request.error} retry={() => void request.refetch()} />;
@@ -152,8 +168,9 @@ export function RequestAndQuotes({ id }: { id: string }) {
     <div className="stack">
       <section className="detail-band"><div><div className="eyebrow">{item.area.name} · {item.nearestLandmark}</div><h1>{item.service.name}</h1><p>{item.isAsap ? "As soon as possible" : item.preferredStartAt ? new Date(item.preferredStartAt).toLocaleString("en-NG") : "Time to arrange"}</p></div><Badge tone="info">{niceStatus(item.status)}</Badge></section>
       <div className="grid-2">
-        <Card><h2>Request details</h2><p>{item.description}</p><p className="subtle">Budget: {item.budgetMaxKobo ? `up to ${money(item.budgetMaxKobo)}` : "Flexible"}</p><div className="timeline"><div>Request sent</div><div>{quoteRows.length ? `${quoteRows.length} quotes ready to compare` : "Waiting for technicians to reply"}</div><div>Choose a technician</div><div>Track the booking and confirm completion</div></div>
-          {["OPEN", "DIRECTED", "QUOTED"].includes(item.status) && <Button tone="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate({ id, data: { idempotencyKey: makeKey(), reasonCode: "USER_REQUEST", reason: "Cancelled in the demo app." } })}>Cancel request</Button>}
+        <Card><h2>Request details</h2>{editing ? <form className="stack" onSubmit={(event) => { event.preventDefault(); update.mutate({ id, data: { nearestLandmark: editLandmark.trim(), description: editDescription.trim() } }, { onSuccess: () => setEditing(false) }); }}><label className="field"><span className="field-label">Nearest landmark</span><input className="input" required minLength={2} value={editLandmark} onChange={(event) => setEditLandmark(event.target.value)} /></label><label className="field"><span className="field-label">Job details</span><textarea className="input" required minLength={20} value={editDescription} onChange={(event) => setEditDescription(event.target.value)} /></label><Button type="submit" disabled={update.isPending}>{messages.userApp.saveRequest}</Button>{update.isError && <p className="error-text" role="alert">{update.error.message}</p>}</form> : <><p>{item.description}</p><p className="subtle">Budget: {item.budgetMaxKobo ? `up to ${money(item.budgetMaxKobo)}` : "Flexible"}</p>{item.mediaKeys?.length ? <p className="subtle">Attached photos: {item.mediaKeys.join(", ")}</p> : null}</>}
+          <div className="timeline"><div>Request sent</div><div>{quoteRows.length ? `${quoteRows.length} quotes ready to compare` : "Waiting for technicians to reply"}</div><div>Choose a technician</div><div>Track the booking and confirm completion</div></div>
+          {["OPEN", "DIRECTED", "QUOTED"].includes(item.status) && <div className="stack"><Button tone="secondary" disabled={cancel.isPending} onClick={() => { setEditLandmark(item.nearestLandmark); setEditDescription(item.description); setEditing((current) => !current); }}>{messages.userApp.editRequest}</Button><label className="field"><span className="field-label">{messages.userApp.cancelReason}</span><select className="input" value={cancelReason} onChange={(event) => setCancelReason(event.target.value)}><option>Changed my plans</option><option>Found another technician</option><option>Request details changed</option><option>Submitted by mistake</option></select></label><Button tone="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate({ id, data: { idempotencyKey: makeKey(), reasonCode: "USER_REQUEST", reason: cancelReason } })}>Cancel request</Button></div>}
           {cancel.isError && <p className="error-text" role="alert">{cancel.error.message}</p>}
         </Card>
         <Card><div className="section-head"><h2>Compare quotes</h2><Badge tone="info">{quoteRows.length}</Badge></div>
@@ -195,6 +212,7 @@ export function BookingDetail({ id }: { id: string }) {
   const dispute = useDisputeBooking();
   const [contact, setContact] = useState("");
   const [reason, setReason] = useState("");
+  const [cancelReason, setCancelReason] = useState("Changed my plans");
   if (bookingQuery.isLoading || bookingQuery.isError) return <LoadError loading={bookingQuery.isLoading} error={bookingQuery.error} retry={() => void bookingQuery.refetch()} />;
   const booking = bookingQuery.data!;
   const actionError = cancel.error ?? status.error ?? reveal.error ?? dispute.error;
@@ -210,7 +228,8 @@ export function BookingDetail({ id }: { id: string }) {
         <Link className="button button-secondary" href="/app/messages">Open chat</Link>
         {!allDone && <Button tone="secondary" disabled={reveal.isPending} onClick={() => reveal.mutate(id, { onSuccess: (details) => setContact(details.phoneNumber) })}>{reveal.isPending ? "Loading contact…" : "Reveal technician contact"}</Button>}
         {booking.status === "COMPLETED_PENDING_CONFIRMATION" && <Button disabled={status.isPending} onClick={() => status.mutate({ id, data: { status: "COMPLETED", idempotencyKey: makeKey() } })}>Confirm completion</Button>}
-        {!allDone && <Button tone="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate({ id, data: { idempotencyKey: makeKey(), reasonCode: "USER_REQUEST", reason: "Cancelled in the demo app." } })}>Cancel booking</Button>}
+        {booking.status === "COMPLETED" && <Link className="button button-secondary" href="/app/reviews">Leave a review</Link>}
+        {!allDone && <div className="booking-cancel-control"><label className="field"><span className="field-label">{messages.userApp.cancelReason}</span><select className="input" value={cancelReason} onChange={(event) => setCancelReason(event.target.value)}><option>Changed my plans</option><option>Technician is unavailable</option><option>Price or scope changed</option><option>Booked by mistake</option></select></label><Button tone="secondary" disabled={cancel.isPending} onClick={() => cancel.mutate({ id, data: { idempotencyKey: makeKey(), reasonCode: "USER_REQUEST", reason: cancelReason } })}>Cancel booking</Button></div>}
       </div>
       {contact && <p className="form-success" role="status">Technician phone: {contact}</p>}
       {actionError && <p className="error-text" role="alert">{actionError.message}</p>}
@@ -218,6 +237,14 @@ export function BookingDetail({ id }: { id: string }) {
       {dispute.isSuccess && <p className="form-success" role="status">Your demo dispute has been opened.</p>}
     </Card>
   </div>;
+}
+
+export function DisputeDetail({ bookingId }: { bookingId: string }) {
+  const query = useBooking(bookingId);
+  if (query.isLoading || query.isError) return <LoadError loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
+  if (!query.data || query.data.status !== "DISPUTED") return <Card><h2>No open dispute found</h2><p className="subtle">This booking has no dispute in the current mock session.</p><Link href="/app/bookings" className="button button-secondary">View bookings</Link></Card>;
+  const disputeEntry = [...query.data.history].reverse().find((entry) => entry.toStatus === "DISPUTED");
+  return <Card><Badge tone="warning">Under review</Badge><h2>{query.data.service.name} · {query.data.technician.displayName}</h2><p>{disputeEntry?.reason ?? "A dispute was opened for this booking."}</p><p className="subtle">Opened {disputeEntry ? new Date(disputeEntry.createdAt).toLocaleString("en-NG") : "in this demo"}</p><Link href={`/app/bookings/${bookingId}`} className="button">Return to booking</Link></Card>;
 }
 
 export function PaymentHistory() {
@@ -283,13 +310,67 @@ export function ConversationView({ id }: { id: string }) {
   const query = useMessages(id);
   const sendMessage = useSendMessage();
   const [draft, setDraft] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [sendState, setSendState] = useState<"idle" | "pending" | "sent" | "failed">("idle");
   const [lastFailedText, setLastFailedText] = useState("");
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+  const [technicianTyping, setTechnicianTyping] = useState(false);
+  useEffect(() => {
+    const key = `servicehub-message-queue-${id}`;
+    const readCount = () => {
+      try {
+        const items = JSON.parse(localStorage.getItem(key) ?? "[]") as unknown[];
+        setOfflineQueueCount(items.length);
+      } catch {
+        localStorage.removeItem(key);
+        setOfflineQueueCount(0);
+      }
+    };
+    readCount();
+    const flush = async () => {
+      if (!navigator.onLine) return;
+      try {
+        const items = JSON.parse(localStorage.getItem(key) ?? "[]") as Array<{ body: string; attachments: string[]; clientMessageKey: string }>;
+        for (const item of items) {
+          await sendMessage.mutateAsync({ conversationId: id, data: item });
+        }
+        localStorage.removeItem(key);
+        setOfflineQueueCount(0);
+      } catch {
+        readCount();
+      }
+    };
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [id, sendMessage]);
+  useEffect(() => {
+    if (!draft.trim()) {
+      setTechnicianTyping(false);
+      return;
+    }
+    const typingTimer = window.setTimeout(() => setTechnicianTyping(true), 500);
+    const stopTimer = window.setTimeout(() => setTechnicianTyping(false), 1800);
+    return () => {
+      window.clearTimeout(typingTimer);
+      window.clearTimeout(stopTimer);
+    };
+  }, [draft]);
   async function send(text: string) {
+    const media = attachments.map((file) => file.name);
+    if (!navigator.onLine) {
+      const key = `servicehub-message-queue-${id}`;
+      const queued = JSON.parse(localStorage.getItem(key) ?? "[]") as Array<{ body: string; attachments: string[]; clientMessageKey: string }>;
+      localStorage.setItem(key, JSON.stringify([...queued, { body: text, attachments: media, clientMessageKey: makeKey() }]));
+      setOfflineQueueCount(queued.length + 1);
+      setDraft("");
+      setAttachments([]);
+      return;
+    }
     setSendState("pending");
     try {
-      await sendMessage.mutateAsync({ conversationId: id, data: { clientMessageKey: makeKey(), body: text } });
+      await sendMessage.mutateAsync({ conversationId: id, data: { clientMessageKey: makeKey(), body: text, attachments: media } });
       setDraft("");
+      setAttachments([]);
       setLastFailedText("");
       setSendState("sent");
     } catch {
@@ -300,11 +381,14 @@ export function ConversationView({ id }: { id: string }) {
   if (query.isLoading || query.isError) return <LoadError loading={query.isLoading} error={query.error} retry={() => void query.refetch()} />;
   return <div className="stack">
     <aside className="payments-in-app-banner"><strong>Keep payments in the app</strong><span>Never share payment details in chat. Use the booking’s payment options and receipt history.</span></aside>
-    <Card><div className="chat-messages">{query.data?.items.map((message) => <div key={message.id} className={message.senderId === "user-current" ? "chat-message chat-message-own" : "chat-message"}><p>{message.body}</p><span>{new Date(message.createdAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}</span></div>)}</div>
-      <form className="chat-send-form" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) void send(draft.trim()); }}>
+    {offlineQueueCount > 0 && <aside className="offline-queue-banner" role="status">{messages.userApp.offlineQueue} ({offlineQueueCount})</aside>}
+    <Card><div className="chat-messages">{query.data?.items.map((message) => <div key={message.id} className={message.senderId === "user-current" ? "chat-message chat-message-own" : "chat-message"}><p>{message.body}</p>{message.attachments?.map((attachment) => <span className="chat-attachment" key={attachment}>{attachment}</span>)}<span>{new Date(message.createdAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}{message.senderId === "user-current" && message.readAt ? ` · ${messages.userApp.readReceipt}` : ""}</span></div>)}{technicianTyping && <p className="subtle" role="status">{messages.userApp.typing}</p>}</div>
+      <form className="chat-send-form" onSubmit={(event) => { event.preventDefault(); if (draft.trim() || attachments.length) void send(draft.trim()); }}>
         <label className="sr-only" htmlFor="chat-draft">Write a message</label><input id="chat-draft" className="input" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message" />
-        <Button type="submit" disabled={!draft.trim() || sendState === "pending"}>{sendState === "pending" ? "Sending…" : "Send"}</Button>
+        <label className="button button-secondary chat-attachment-button">{messages.userApp.chatAttachment}<input className="sr-only" type="file" multiple onChange={(event) => setAttachments(Array.from(event.target.files ?? []))} /></label>
+        <Button type="submit" disabled={(!draft.trim() && !attachments.length) || sendState === "pending"}>{sendState === "pending" ? "Sending…" : "Send"}</Button>
       </form>
+      {attachments.map((file) => <span className="field-hint" key={`${file.name}-${file.size}`}>{file.name}</span>)}
       {sendState === "sent" && <p className="form-success" role="status">Message sent in this demo.</p>}
       {sendState === "failed" && <p className="error-text" role="alert">Message failed to send. Check the Dev State error option or retry.</p>}
       {sendState === "failed" && <Button tone="secondary" onClick={() => void send(lastFailedText)}>Retry message</Button>}

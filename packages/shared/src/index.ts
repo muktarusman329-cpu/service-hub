@@ -13,3 +13,6 @@ export * from "./hooks/use-marketplace";
 export * from "./fixtures/marketplace";
 export * from "./hooks/use-customer-tools";
 export * from "./hooks/use-catalog";
+export * from "./hooks/use-workspaces";
+export * from "./hooks/use-wallet";
+export * from "./hooks/use-account-workspace";

@@ -1,68 +1,78 @@
 "use client";
-import { useEffect, useState } from "react";
+
 import Link from "next/link";
+import { useState } from "react";
+import type { Booking, JobRequest } from "@servicehub/shared/api-client";
+import { useBookings } from "@servicehub/shared/hooks/use-bookings";
+import { useJobRequests } from "@servicehub/shared/hooks/use-job-requests";
+import { useCreateQuote } from "@servicehub/shared/hooks/use-quotes";
 import { Badge, Button, Card } from "@servicehub/ui/components";
-import { authFetch } from "@/lib/auth-client";
 
-type Item = {
-  id: string; status?: string; name?: string; displayName?: string; verified?: boolean;
-  service?: { id?: string; name: string }; area?: { id?: string; name: string };
-  request?: { service?: { name: string }; area?: { name: string }; nearestLandmark?: string };
-  technician?: { displayName: string; areaName?: string | null; verified?: boolean; rating?: { average: number | null; count: number }; completedJobCount?: number };
-  nearestLandmark?: string; description?: string; isAsap?: boolean; preferredStartAt?: string;
-  priceKobo?: number; platformFeePreviewKobo?: number; estimatedArrivalMins?: number; message?: string;
-  body?: string; senderId?: string;
-  urgency?: string; expiresAt?: string; createdAt?: string; updatedAt?: string;
-  [key: string]: unknown;
-};
-const money = (kobo: number) => `₦${Math.round(kobo / 100).toLocaleString("en-NG")}`;
+const money = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 
-export function RequestWizard() {
-  const [step, setStep] = useState(1), [services, setServices] = useState<Item[]>([]), [areas, setAreas] = useState<Item[]>([]), [error, setError] = useState(""), [busy, setBusy] = useState(false), [done, setDone] = useState<Item | null>(null);
-  const [form, setForm] = useState({ serviceId: "", areaId: "", nearestLandmark: "", description: "", isAsap: true });
-  useEffect(() => { Promise.all([fetch("http://localhost:4000/api/v1/catalog/minna/categories").then(r => r.json()), fetch("http://localhost:4000/api/v1/catalog/minna/areas").then(r => r.json())]).then(([catalog, areaRows]) => { const catalogData = catalog as { items?: Array<{ services: Item[] }> }; setServices((catalogData.items || []).flatMap(c => c.services)); setAreas(areaRows as Item[]); }).catch(() => setError("We could not load Minna services. Refresh to try again.")); }, []);
-  async function submit() { setError(""); setBusy(true); try { const city = await fetch("http://localhost:4000/api/v1/catalog/minna/categories").then(r => r.json()); const row = await authFetch("/jobs/requests", { method: "POST", body: JSON.stringify({ ...form, cityId: city.city.id, clientIdempotencyKey: crypto.randomUUID() }) }); setDone(row); } catch (e) { setError(e instanceof Error ? e.message : "Your request could not be sent."); } finally { setBusy(false); } }
-  if (done) return <Card><Badge tone="success">Request sent</Badge><h2>Your request is with nearby technicians</h2><p>We will let you know when quotes arrive.</p><Link href={`/app/jobs/${done.id}`} className="button">View request</Link></Card>;
-  return <div className="stack"><Card><div className="section-head"><div><div className="eyebrow">Step {step} of 3</div><h1>{["What do you need?", "Where and when?", "Add a few details"][step - 1]}</h1></div><Badge tone="info">Minna</Badge></div><div className="progress-track"><span style={{ width: `${step * 33.33}%` }} /></div>
-    {step === 1 && <label className="field-label">Service<select className="input" value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })}><option value="">Choose a service</option>{services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
-    {step === 2 && <><label className="field-label">Area<select className="input" value={form.areaId} onChange={e => setForm({ ...form, areaId: e.target.value })}><option value="">Choose an area</option>{areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label><label className="field-label">Nearest landmark<input className="input" placeholder="For example, near FUT Minna main gate" value={form.nearestLandmark} onChange={e => setForm({ ...form, nearestLandmark: e.target.value })} /></label><label className="check-row"><input type="checkbox" checked={form.isAsap} onChange={e => setForm({ ...form, isAsap: e.target.checked })} /> As soon as possible</label></>}
-    {step === 3 && <label className="field-label">Describe the job<textarea className="input" rows={5} minLength={20} maxLength={3000} placeholder="Tell the technician what happened and what help you need." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>}
-    {error && <p className="error-text" role="alert">{error}</p>}<div className="section-head"><Button tone="secondary" disabled={step === 1} onClick={() => setStep(step - 1)}>Back</Button>{step < 3 ? <Button disabled={step === 1 ? !form.serviceId : !form.areaId || form.nearestLandmark.trim().length < 2} onClick={() => setStep(step + 1)}>Continue</Button> : <Button disabled={busy || form.description.trim().length < 20} onClick={submit}>{busy ? "Sending…" : "Send request"}</Button>}</div>
-  </Card><p className="subtle">You can compare quotes before choosing a technician. No payment is taken here.</p></div>;
+function QuoteForm({ request }: { request: JobRequest }) {
+  const createQuote = useCreateQuote();
+  const [price, setPrice] = useState("");
+  const [labor, setLabor] = useState("");
+  const [materials, setMaterials] = useState("");
+  const [message, setMessage] = useState("");
+  const priceKobo = Math.round(Number(price) * 100);
+  const feePreview = Math.round(priceKobo * 0.1);
+  return <form className="stack technician-quote-form" onSubmit={(event) => {
+    event.preventDefault();
+    createQuote.mutate({ requestId: request.id, data: {
+      priceKobo,
+      laborKobo: labor ? Math.round(Number(labor) * 100) : undefined,
+      materialsKobo: materials ? Math.round(Number(materials) * 100) : undefined,
+      estimatedArrivalMins: 30,
+      message: message.trim() || "I can help with this request.",
+      clientIdempotencyKey: globalThis.crypto?.randomUUID?.() ?? `quote-${Date.now()}`,
+    } }, { onSuccess: () => { setPrice(""); setLabor(""); setMaterials(""); setMessage(""); } });
+  }}>
+    <div className="form-grid-2">
+      <label className="field"><span className="field-label">Total price (₦)</span><input className="input" type="number" min="1" required value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+      <label className="field"><span className="field-label">Labour (₦)</span><input className="input" type="number" min="0" value={labor} onChange={(event) => setLabor(event.target.value)} /></label>
+      <label className="field"><span className="field-label">Materials (₦)</span><input className="input" type="number" min="0" value={materials} onChange={(event) => setMaterials(event.target.value)} /></label>
+      <div className="field"><span className="field-label">Fee preview</span><strong>{priceKobo > 0 ? money(feePreview) : "Enter a price"}</strong></div>
+    </div>
+    <label className="field"><span className="field-label">Message to customer</span><textarea className="input" rows={3} maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Explain what your quote includes." /></label>
+    {createQuote.isError && <p className="error-text" role="alert">{createQuote.error.message}</p>}
+    {createQuote.isSuccess && <p className="form-success" role="status">Quote sent in the demo.</p>}
+    <Button type="submit" disabled={createQuote.isPending || priceKobo <= 0}>{createQuote.isPending ? "Sending quote…" : "Send quote"}</Button>
+  </form>;
+}
+
+function LoadingState({ retry }: { retry: () => void }) {
+  return <Card><p role="status">Loading requests…</p><span className="skeleton" /><span className="skeleton short" /><Button tone="secondary" onClick={retry}>Try again</Button></Card>;
 }
 
 export function JobList({ audience }: { audience: "user" | "technician" | "admin" }) {
-  const [rows, setRows] = useState<Item[]>([]), [error, setError] = useState(""), [loading, setLoading] = useState(true), [quote, setQuote] = useState<Record<string, string>>({});
-  useEffect(() => { const path = audience === "user" ? "/jobs/requests/mine" : audience === "technician" ? "/jobs/technician/feed" : "/admin/jobs/bookings"; authFetch(path).then((data: unknown) => setRows(Array.isArray(data) ? data as Item[] : [])).catch((e: Error) => setError(e.message)).finally(() => setLoading(false)); }, [audience]);
-  if (loading) return <div className="stack" aria-label="Loading"><Card><div className="skeleton" /><div className="skeleton short" /></Card><Card><div className="skeleton" /><div className="skeleton short" /></Card></div>;
-  return <div className="stack">{error && <Card><p className="error-text">{error}</p><Button tone="secondary" onClick={() => location.reload()}>Try again</Button></Card>}{rows.length === 0 && !error && <Card><h2>{audience === "technician" ? "No matching requests right now" : "Nothing here yet"}</h2><p className="subtle">{audience === "user" ? "Post a request to hear from local technicians." : "We will show new activity here when it arrives."}</p>{audience === "user" && <Link className="button" href="/app/jobs/new">Request a service</Link>}</Card>}
-    {rows.map((row, index) => <Card key={row.id}><div className="section-head"><div><div className="eyebrow">{row.service?.name || row.request?.service?.name || "Booking"} · {row.area?.name || row.request?.area?.name || "Minna"}</div><h2>{row.nearestLandmark || row.request?.nearestLandmark || `Request ${index + 1}`}</h2></div><Badge tone={row.status === "COMPLETED" ? "success" : row.status?.includes("CANCEL") || row.status === "FAILED" ? "danger" : "info"}>{row.status?.replaceAll("_", " ")}</Badge></div><p className="subtle">{row.description || "Open the request to view details and history."}</p>
-      {audience === "technician" && <div className="form-inline"><input className="input" aria-label="Quote price in naira" placeholder="Price in ₦" value={quote[row.id] || ""} onChange={e => setQuote({ ...quote, [row.id]: e.target.value })} /><Button onClick={async () => { try { await authFetch(`/jobs/requests/${row.id}/quotes`, { method: "POST", body: JSON.stringify({ priceKobo: Math.round(Number(quote[row.id]) * 100), message: "I can help with this request.", clientIdempotencyKey: crypto.randomUUID() }) }); location.reload(); } catch (e) { setError(e instanceof Error ? e.message : "Quote was not sent"); } }}>Send quote</Button></div>}
-      {audience !== "admin" && <Link href={audience === "user" ? `/app/jobs/${row.id}` : `/technician/jobs/${row.id}`} className="button button-secondary">View details</Link>}
-    </Card>)}</div>;
-}
+  const requests = useJobRequests();
+  const bookingsQuery = useBookings();
+  const query = audience === "admin" ? bookingsQuery : requests;
+  const retry = () => { void requests.refetch(); void bookingsQuery.refetch(); };
+  if (query.isLoading) return <LoadingState retry={retry} />;
+  if (query.isError) return <Card><p className="error-text" role="alert">{query.error.message}</p><Button tone="secondary" onClick={retry}>Try again</Button></Card>;
 
-export function RequestDetails({ id }: { id: string }) {
-  const [request, setRequest] = useState<Item | null>(null), [quotes, setQuotes] = useState<Item[]>([]), [error, setError] = useState(""), [busy, setBusy] = useState(false);
-  useEffect(() => { Promise.all([authFetch(`/jobs/requests/${id}`), authFetch(`/jobs/requests/${id}/quotes`)]).then(([r, q]) => { setRequest(r); setQuotes(q); }).catch((e: Error) => setError(e.message)); }, [id]);
-  if (error) return <Card><p className="error-text">{error}</p></Card>; if (!request) return <Card><div className="skeleton" /><div className="skeleton short" /></Card>;
-  return <div className="stack"><section className="detail-band"><div><div className="eyebrow">{request.area?.name} · {request.nearestLandmark}</div><h1>{request.service?.name}</h1><p>{request.isAsap ? "As soon as possible" : request.preferredStartAt ? new Date(request.preferredStartAt).toLocaleString() : "Time to confirm"}</p></div><Badge>{request.status?.replaceAll("_", " ")}</Badge></section><div className="grid-2"><Card><h2>Request details</h2><p>{request.description}</p><p className="subtle">Quotes received: {quotes.length}</p><div className="timeline"><div>Request sent</div><div>{quotes.length ? "Quotes ready to compare" : "Waiting for quotes"}</div><div>Choose a technician</div><div>Confirm the job is complete</div></div></Card><Card><h2>Compare quotes</h2>{quotes.length ? quotes.map(q => <div className="quote-card" key={q.id}><div className="section-head"><strong>{q.technician?.displayName || "Verified technician"}</strong><Badge tone="success">Verified</Badge></div><p className="metric-value">{money(q.priceKobo ?? 0)}</p><p className="subtle">Platform fee preview {money(q.platformFeePreviewKobo ?? 0)} · {q.technician?.areaName || request.area?.name || "Minna"} · {q.estimatedArrivalMins ? `${q.estimatedArrivalMins} min` : "Time to confirm"}</p><p>{q.message}</p><Button disabled={busy} onClick={async () => { setBusy(true); try { await authFetch(`/jobs/quotes/${q.id}/accept`, { method: "POST", body: JSON.stringify({ paymentMethod: "CASH", idempotencyKey: crypto.randomUUID() }) }); location.href = "/app/bookings"; } catch (e) { setError(e instanceof Error ? e.message : "Could not accept quote"); setBusy(false); } }}>Choose this quote</Button></div>) : <p className="subtle">Quotes will appear here as technicians respond.</p>}</Card></div></div>;
-}
+  if (audience === "admin") {
+    const bookings = (bookingsQuery.data ?? []) as Booking[];
+    return bookings.length ? <div className="stack">{bookings.map((booking) => (
+      <Card key={booking.id}><div className="section-head"><div><div className="eyebrow">{booking.service.name} · {booking.area.name}</div><h2>{booking.technician.displayName}</h2></div><Badge tone={booking.status === "COMPLETED" ? "success" : booking.status === "DISPUTED" ? "danger" : "info"}>{booking.status.replaceAll("_", " ")}</Badge></div>
+        <p className="subtle">{booking.nearestLandmark} · {money(booking.priceKobo)} · {booking.history.length} status updates</p>
+        <Link className="button button-secondary" href={`/admin/jobs/${booking.id}`}>Review booking</Link>
+      </Card>
+    ))}</div> : <Card><h2>No bookings yet</h2><p className="subtle">Bookings will appear after a customer accepts a quote.</p></Card>;
+  }
 
-export function BookingList() {
-  const [rows, setRows] = useState<Item[]>([]), [error, setError] = useState(""), [loading, setLoading] = useState(true);
-  useEffect(() => { authFetch("/jobs/bookings/mine").then((v: unknown) => setRows(Array.isArray(v) ? v as Item[] : [])).catch((e: Error) => setError(e.message)).finally(() => setLoading(false)); }, []);
-  if (loading) return <Card><div className="skeleton" /><div className="skeleton short" /></Card>;
-  if (error) return <Card><p className="error-text">{error}</p></Card>;
-  if (!rows.length) return <Card><h2>No bookings yet</h2><p className="subtle">Once you choose a quote, the booking tracker will appear here.</p><Link className="button" href="/app/jobs/new">Request a service</Link></Card>;
-  return <div className="stack">{rows.map(row => <Card key={row.id}><div className="section-head"><div><div className="eyebrow">{row.request?.service?.name} · {row.request?.area?.name}</div><h2>{row.request?.nearestLandmark}</h2></div><Badge tone={row.status === "COMPLETED" ? "success" : row.status?.includes("CANCEL") ? "danger" : "info"}>{row.status?.replaceAll("_", " ")}</Badge></div><div className="timeline"><div>Quote accepted</div><div>{row.status === "TECHNICIAN_EN_ROUTE" ? "Technician is on the way" : "Technician updates"}</div><div>{row.status === "COMPLETED" ? "Completed" : "Confirm when work is done"}</div></div><Link className="button button-secondary" href="/app/messages">Open chat</Link>{row.status === "COMPLETED_PENDING_CONFIRMATION" && <Button onClick={async () => { try { await authFetch(`/jobs/bookings/${row.id}/status`, { method: "PATCH", body: JSON.stringify({ status: "COMPLETED", idempotencyKey: crypto.randomUUID() }) }); location.reload(); } catch (e) { setError(e instanceof Error ? e.message : "Could not confirm completion"); } }}>Confirm completion</Button>}</Card>)}</div>;
-}
-
-export function ChatInbox() {
-  const [rows, setRows] = useState<Item[]>([]), [error, setError] = useState(""), [active, setActive] = useState<Item | null>(null), [messages, setMessages] = useState<Item[]>([]), [draft, setDraft] = useState(""), [pending, setPending] = useState(0);
-  useEffect(() => { authFetch("/jobs/conversations").then((v: unknown) => setRows(Array.isArray(v) ? v as Item[] : [])).catch((e: Error) => setError(e.message)); }, []);
-  useEffect(() => { if (!active) return; let stopped = false; const load = () => authFetch(`/jobs/conversations/${active.id}/messages`).then((v: unknown) => { if (!stopped) setMessages(((v as { items?: Item[] }).items || [])); }).catch((e: Error) => { if (!stopped) setError(e.message); }); void load(); const timer = window.setInterval(load, 5000); return () => { stopped = true; window.clearInterval(timer); }; }, [active]);
-  useEffect(() => { const flush = async () => { const key = `servicehub-queue-${active?.id || ""}`; if (!active || !navigator.onLine) return; const queued = JSON.parse(localStorage.getItem(key) || "[]") as Array<{ body: string; clientMessageKey: string }>; for (const item of queued) { try { await authFetch(`/jobs/conversations/${active.id}/messages`, { method: "POST", body: JSON.stringify(item) }); localStorage.setItem(key, JSON.stringify(queued.filter(x => x.clientMessageKey !== item.clientMessageKey))); setPending(n => Math.max(0, n - 1)); } catch { break; } } }; window.addEventListener("online", flush); return () => window.removeEventListener("online", flush); }, [active]);
-  async function send() { if (!active || !draft.trim()) return; const item = { body: draft.trim(), clientMessageKey: crypto.randomUUID() }; setDraft(""); if (!navigator.onLine) { const key = `servicehub-queue-${active.id}`; const queue = JSON.parse(localStorage.getItem(key) || "[]"); localStorage.setItem(key, JSON.stringify([...queue, item])); setPending(n => n + 1); return; } try { await authFetch(`/jobs/conversations/${active.id}/messages`, { method: "POST", body: JSON.stringify(item) }); } catch { const key = `servicehub-queue-${active.id}`; const queue = JSON.parse(localStorage.getItem(key) || "[]"); localStorage.setItem(key, JSON.stringify([...queue, item])); setPending(n => n + 1); setError("Message pending. We will retry when you reconnect."); } }
-  return <div className="chat-layout"><Card><h2>Conversations</h2>{rows.length ? rows.map(row => <button key={row.id} className="conversation-choice" onClick={() => setActive(row)}>{row.request?.service?.name || "Service request"}<span>{row.request?.area?.name || "Minna"}</span></button>) : <p className="subtle">Chat opens when a technician sends a quote.</p>}</Card><Card className="chat-card"><div className="section-head"><h2>{active?.request?.service?.name || "Choose a conversation"}</h2><Badge tone={pending ? "warning" : "success"}>{pending ? `${pending} pending` : typeof navigator === "undefined" || navigator.onLine ? "Connected" : "Offline"}</Badge></div>{error && <p className="subtle" role="status">{error}</p>}<div className="chat-messages">{messages.map(message => <div className="chat-message" key={message.id}><p>{message.body}</p><small>{message.createdAt ? new Date(message.createdAt as string).toLocaleTimeString() : "Pending"}</small></div>)}{!messages.length && <p className="subtle">Messages will appear here.</p>}</div>{active && <form className="chat-compose" onSubmit={e => { e.preventDefault(); void send(); }}><input className="input" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message" aria-label="Write a message" /><Button type="submit">Send</Button></form>}</Card></div>;
+  const allRequests = (requests.data ?? []) as JobRequest[];
+  const rows = audience === "technician"
+    ? allRequests.filter((request) => !request.booking && ["OPEN", "DIRECTED", "QUOTED"].includes(request.status))
+    : allRequests;
+  return rows.length ? <div className="stack">{rows.map((request) => (
+    <Card key={request.id}><div className="section-head"><div><div className="eyebrow">{request.service.name} · {request.area.name}</div><h2>{request.nearestLandmark}</h2></div><Badge tone={request.status.startsWith("CANCEL") ? "danger" : "info"}>{request.status.replaceAll("_", " ")}</Badge></div>
+      <p>{request.description}</p><p className="subtle">{request.isAsap ? "As soon as possible" : request.preferredStartAt ? new Date(request.preferredStartAt).toLocaleString("en-NG") : "Time to arrange"} · {request.activeQuoteCount} quote(s)</p>
+      {audience === "user" ? <Link className="button button-secondary" href={`/app/jobs/${request.id}`}>Open request</Link>
+        : <><Link className="button button-secondary" href={`/technician/jobs/${request.id}`}>View request details</Link><QuoteForm request={request} /></>}
+    </Card>
+  ))}</div> : <Card><h2>{audience === "technician" ? "No matching requests right now" : "No requests yet"}</h2><p className="subtle">{audience === "technician" ? "Matching requests in your service areas will appear here." : "Create a service request to receive local quotes."}</p>{audience === "user" && <Link className="button" href="/app/jobs/new">Request a service</Link>}</Card>;
 }

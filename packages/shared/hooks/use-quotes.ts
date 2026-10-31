@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { mockApiClient } from "../mock-api-client";
 
 export function useQuotes(requestId: string) {
@@ -9,6 +9,15 @@ export function useQuotes(requestId: string) {
   });
 }
 
+export function useQuotesForRequests(requestIds: string[]) {
+  return useQueries({
+    queries: requestIds.map((requestId) => ({
+      queryKey: ["quotes", requestId],
+      queryFn: () => mockApiClient.getQuotes(requestId),
+    })),
+  });
+}
+
 export function useCreateQuote() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -16,6 +25,27 @@ export function useCreateQuote() {
       mockApiClient.createQuote(requestId, data),
     onSuccess: (_, { requestId }) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", requestId] });
+      queryClient.invalidateQueries({ queryKey: ["job-requests"] });
+    },
+  });
+}
+
+export function useUpdateQuote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ quoteId, data }: { quoteId: string; data: Parameters<typeof mockApiClient.updateQuote>[1] }) => mockApiClient.updateQuote(quoteId, data),
+    onSuccess: (quote) => {
+      queryClient.invalidateQueries({ queryKey: ["quotes", quote.jobRequestId] });
+    },
+  });
+}
+
+export function useWithdrawQuote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (quoteId: string) => mockApiClient.withdrawQuote(quoteId),
+    onSuccess: (quote) => {
+      queryClient.invalidateQueries({ queryKey: ["quotes", quote.jobRequestId] });
       queryClient.invalidateQueries({ queryKey: ["job-requests"] });
     },
   });

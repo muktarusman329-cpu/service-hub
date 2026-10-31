@@ -1,4 +1,4 @@
-import type { ApiClient, JobRequest, Quote, Booking, Conversation, Message, MessagePage, TechnicianPublic, Category, Service, Wallet, Transaction, Payout, CreateJobRequestDto, CreateQuoteDto, AcceptQuoteDto, CancelDto, StatusDto, CreateMessageDto, TechnicianFilters, PayoutDto, ContactInfo, MarketListing, MarketplaceFilters, CreateMarketListingDto, PaymentRecord, Review, CreateReviewDto, AppNotification } from "./api-client";
+import type { AdminWorkspace, AdminWorkspaceAction, ApiClient, JobRequest, Quote, Booking, Conversation, Message, MessagePage, TechnicianPublic, Category, Service, Wallet, Transaction, Payout, CreateJobRequestDto, UpdateJobRequestDto, CreateQuoteDto, AcceptQuoteDto, CancelDto, StatusDto, CreateMessageDto, TechnicianFilters, PayoutDto, ContactInfo, MarketListing, MarketplaceFilters, CreateMarketListingDto, UpdateMarketListingDto, MarketOrder, MarketSellerProfile, PaymentRecord, Review, CreateReviewDto, AppNotification, TechnicianWorkspace, TechnicianWorkspaceAction, AccountWorkspace, AccountWorkspaceAction } from "./api-client";
 import { categories } from "./fixtures/categories";
 import { minnaAreas } from "./fixtures/areas";
 import { marketplaceListings } from "./fixtures/marketplace";
@@ -209,7 +209,7 @@ let conversations: Conversation[] = [
   },
 ];
 let messages: Map<string, Message[]> = new Map([["conversation-active", [
-  { id: "message-welcome", conversationId: "conversation-active", senderId: "tech-1", body: "I will arrive around noon.", createdAt: "2026-10-29T09:00:00.000Z", editedAt: null, deletedAt: null },
+  { id: "message-welcome", conversationId: "conversation-active", senderId: "tech-1", body: "I will arrive around noon.", createdAt: "2026-10-29T09:00:00.000Z", editedAt: null, deletedAt: null, deliveryStatus: "SENT", readAt: new Date().toISOString() },
 ]]]);
 let technicians: TechnicianPublic[] = [];
 let paymentRecords: PaymentRecord[] = [
@@ -231,6 +231,69 @@ let wallet: Wallet = {
 };
 let transactions: Transaction[] = [];
 let currentSellerId = "seller-fatima";
+let savedMarketplaceListingIds = new Set<string>(["market-desk"]);
+let marketplaceOrders: MarketOrder[] = [{
+  id: "market-order-demo",
+  listingId: "market-shoes",
+  listingTitle: "Brown leather work shoes",
+  priceKobo: 2400000,
+  status: "REQUESTED",
+  buyer: { id: "buyer-demo", displayName: "Usman Bello" },
+  seller: { id: currentSellerId, displayName: "Fatima Sani" },
+  createdAt: "2026-10-29T09:00:00.000Z",
+  updatedAt: "2026-10-29T09:00:00.000Z",
+}];
+let technicianPayouts: Payout[] = [];
+let technicianWorkspace: TechnicianWorkspace = {
+  application: {
+    id: "application-tech-1",
+    status: "DRAFT",
+    step: 1,
+    displayName: "",
+    bio: "",
+    skills: [],
+    areas: [],
+    availability: [],
+    portfolio: [],
+    kycConsent: false,
+    kycDocumentName: null,
+    guarantorName: null,
+    reviewNote: null,
+    submittedAt: null,
+  },
+  timeOff: [],
+  cashCommissionOwedKobo: 750000,
+  bankAccounts: [{ id: "bank-demo", bankName: "Demo Bank", accountName: "Ibrahim Mohammed", maskedNumber: "**** 2048", isDefault: true }],
+  payouts: technicianPayouts,
+  settings: { notificationsEnabled: true, serviceAreas: ["Bosso", "Tunga"] },
+};
+let adminWorkspace: AdminWorkspace = {
+  users: [
+    { id: "user-1", displayName: "Ibrahim Mohammed", email: "ibrahim@example.test", role: "TECHNICIAN", status: "ACTIVE", areaName: "Bosso", joinedAt: "2026-10-01T10:00:00.000Z" },
+    { id: "user-2", displayName: "Amina Suleiman", email: "amina@example.test", role: "TECHNICIAN", status: "ACTIVE", areaName: "Tunga", joinedAt: "2026-10-04T10:00:00.000Z" },
+    { id: "user-4", displayName: "Fatima Sani", email: "fatima@example.test", role: "CUSTOMER", status: "ACTIVE", areaName: "Maitumbi", joinedAt: "2026-10-08T10:00:00.000Z" },
+  ],
+  flaggedMessages: [{ id: "flag-1", senderName: "Customer · hidden", message: "I am not sure this payment request is correct.", signal: "Payment-related terms", status: "OPEN" }],
+  disputes: [{ id: "dispute-1", bookingId: "booking-active", customerName: "Fatima Sani", technicianName: "Ibrahim Mohammed", reason: "The repair needs a follow-up visit.", status: "OPEN", resolution: null, refundKobo: 0 }],
+  commissionPercent: 10,
+  settings: { cancellationWindowHours: 12, autoCompleteHours: 48, maxActiveBookings: 5, guarantorRequired: false, retentionDays: 365, otpChannel: "SMS", twoFactorEnabled: false },
+  catalogEnabled: Object.fromEntries(categories.flatMap((category) => [[category.id, category.isActive], ...category.services.map((service) => [service.id, service.isActive] as [string, boolean])])),
+  auditLog: [],
+};
+let accountWorkspace: AccountWorkspace = {
+  profile: { displayName: "Fatima Sani", email: "fatima@example.test", phone: "+234 801 234 5678" },
+  addresses: [{ id: "address-bosso", label: "Home", areaName: "Bosso", landmark: "Near Bosso market", isDefault: true }],
+  notificationPreferences: {
+    pushJobUpdates: true,
+    pushMessages: true,
+    pushPromotions: false,
+    emailJobUpdates: true,
+    emailReceipts: true,
+    smsReminders: false,
+  },
+  settings: { language: "en", linkedGoogle: false },
+  onboarding: { accountType: null, step: 1, complete: false },
+};
 
 // Simulated delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -297,15 +360,18 @@ export class MockApiClient implements ApiClient {
   private simulateError = false;
   private simulateLoading = false;
   private simulateEmpty = false;
+  private simulateOffline = false;
 
-  setSimulations({ error, loading, empty }: { error?: boolean; loading?: boolean; empty?: boolean }) {
+  setSimulations({ error, loading, empty, offline }: { error?: boolean; loading?: boolean; empty?: boolean; offline?: boolean }) {
     this.simulateError = error ?? this.simulateError;
     this.simulateLoading = loading ?? this.simulateLoading;
     this.simulateEmpty = empty ?? this.simulateEmpty;
+    this.simulateOffline = offline ?? this.simulateOffline;
   }
 
   private async wrap<T>(fn: () => T): Promise<T> {
     if (this.simulateLoading) await delay(2000);
+    if (this.simulateOffline) throw new Error("You are offline. Restore your connection and try again.");
     if (this.simulateError) throw new Error("Simulated API error");
     return fn();
   }
@@ -321,8 +387,9 @@ export class MockApiClient implements ApiClient {
     });
   }
 
-  async getMarketplaceListing(id: string): Promise<MarketListing> {
+  async getMarketplaceListing(id: string): Promise<MarketListing | null> {
     return this.wrap(() => {
+      if (this.simulateEmpty) return null;
       const listing = marketplaceListings.find((item) => item.id === id && item.status === "PUBLISHED");
       if (!listing) throw new Error("This listing is not available.");
       return listing;
@@ -349,6 +416,7 @@ export class MockApiClient implements ApiClient {
         seller: { id: currentSellerId, displayName: "Fatima Sani" },
         city: { name: "Minna", slug: "minna" },
         area: { name: data.areaName },
+        mediaKeys: data.mediaKeys ?? [],
       };
       marketplaceListings.unshift(listing);
       return listing;
@@ -374,6 +442,93 @@ export class MockApiClient implements ApiClient {
       if (listing.status !== "PUBLISHED") throw new Error("Only approved listings can be marked sold.");
       listing.status = "SOLD";
       return listing;
+    });
+  }
+
+  async updateMarketplaceListing(id: string, data: UpdateMarketListingDto): Promise<MarketListing> {
+    return this.wrap(() => {
+      const listing = marketplaceListings.find((item) => item.id === id && item.seller.id === currentSellerId);
+      if (!listing || listing.status === "SOLD") throw new Error("This listing can no longer be edited.");
+      Object.assign(listing, data);
+      listing.status = "PENDING_REVIEW";
+      listing.moderationNote = null;
+      listing.publishedAt = null;
+      return listing;
+    });
+  }
+
+  async getMarketplaceSellerProfile(id: string): Promise<MarketSellerProfile | null> {
+    return this.wrap(() => {
+      if (this.simulateEmpty) return null;
+      const listings = marketplaceListings.filter((item) => item.seller.id === id && item.status === "PUBLISHED");
+      if (!listings.length) throw new Error("This seller profile is not available.");
+      const seller = listings[0]!.seller;
+      return {
+        id,
+        displayName: seller.displayName ?? "ServiceHub seller",
+        areaName: listings[0]!.area.name,
+        memberSince: "2024-06-01T00:00:00.000Z",
+        listingCount: listings.length,
+        listings,
+      };
+    });
+  }
+
+  async getMarketplaceOrders(role: "BUYER" | "SELLER"): Promise<MarketOrder[]> {
+    return this.wrap(() => this.simulateEmpty ? [] : marketplaceOrders.filter((order) =>
+      role === "BUYER" ? order.buyer.id === "buyer-current" : true));
+  }
+
+  async createMarketplaceOrder(listingId: string): Promise<MarketOrder> {
+    return this.wrap(() => {
+      const listing = marketplaceListings.find((item) => item.id === listingId && item.status === "PUBLISHED");
+      if (!listing) throw new Error("This item is no longer available.");
+      if (listing.seller.id === currentSellerId) throw new Error("You cannot request your own item.");
+      const order: MarketOrder = {
+        id: `market-order-${Date.now()}`,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        priceKobo: listing.priceKobo,
+        status: "REQUESTED",
+        buyer: { id: "buyer-current", displayName: "You" },
+        seller: { id: listing.seller.id, displayName: listing.seller.displayName ?? "Seller" },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      marketplaceOrders.unshift(order);
+      return order;
+    });
+  }
+
+  async updateMarketplaceOrder(id: string, status: "ACCEPTED" | "DECLINED" | "COMPLETED" | "CANCELLED"): Promise<MarketOrder> {
+    return this.wrap(() => {
+      const order = marketplaceOrders.find((item) => item.id === id);
+      if (!order) throw new Error("Marketplace order not found.");
+      if (status === "CANCELLED" && order.buyer.id !== "buyer-current") throw new Error("Only the buyer can cancel this request.");
+      if (order.status !== "REQUESTED" && !(status === "COMPLETED" && order.status === "ACCEPTED")) {
+        throw new Error("This marketplace order cannot be updated from its current status.");
+      }
+      order.status = status;
+      order.updatedAt = new Date().toISOString();
+      return order;
+    });
+  }
+
+  async getSavedMarketplaceListings(): Promise<MarketListing[]> {
+    return this.wrap(() => this.simulateEmpty ? [] : marketplaceListings.filter((item) =>
+      savedMarketplaceListingIds.has(item.id) && item.status === "PUBLISHED"));
+  }
+
+  async toggleSavedMarketplaceListing(id: string): Promise<boolean> {
+    return this.wrap(() => {
+      const listing = marketplaceListings.find((item) => item.id === id && item.status === "PUBLISHED");
+      if (!listing) throw new Error("Only available listings can be saved.");
+      if (savedMarketplaceListingIds.has(id)) {
+        savedMarketplaceListingIds.delete(id);
+        return false;
+      }
+      savedMarketplaceListingIds.add(id);
+      return true;
     });
   }
 
@@ -413,6 +568,7 @@ export class MockApiClient implements ApiClient {
         createdAt: new Date().toISOString(),
         activeQuoteCount: 0,
         booking: null,
+        mediaKeys: data.mediaKeys ?? [],
       };
       jobRequests.unshift(req);
       if (technician) {
@@ -444,6 +600,23 @@ export class MockApiClient implements ApiClient {
         req.activeQuoteCount = 1;
       }
       return req;
+    });
+  }
+
+  async updateJobRequest(id: string, data: UpdateJobRequestDto): Promise<JobRequest> {
+    return this.wrap(() => {
+      const request = jobRequests.find((item) => item.id === id);
+      if (!request) throw new Error("Request not found. Return to your request list and choose another.");
+      if (!["OPEN", "DIRECTED", "QUOTED"].includes(request.status)) {
+        throw new Error("This request can no longer be edited. Contact support if you need help.");
+      }
+      if (data.nearestLandmark !== undefined) request.nearestLandmark = data.nearestLandmark.trim();
+      if (data.description !== undefined) request.description = data.description.trim();
+      if (data.isAsap !== undefined) request.isAsap = data.isAsap;
+      if (data.preferredStartAt !== undefined) request.preferredStartAt = data.preferredStartAt;
+      if (data.budgetMaxKobo !== undefined) request.budgetMaxKobo = data.budgetMaxKobo;
+      if (data.mediaKeys !== undefined) request.mediaKeys = data.mediaKeys;
+      return request;
     });
   }
 
@@ -496,6 +669,30 @@ export class MockApiClient implements ApiClient {
         req.activeQuoteCount = quotes.filter(q => q.jobRequestId === requestId && q.status === "ACTIVE").length;
       }
       
+      return quote;
+    });
+  }
+
+  async updateQuote(quoteId: string, data: Partial<CreateQuoteDto>): Promise<Quote> {
+    return this.wrap(() => {
+      const quote = quotes.find((item) => item.id === quoteId);
+      if (!quote || quote.status !== "ACTIVE") throw new Error("This quote can no longer be edited. Open your quotes and choose an active quote.");
+      if (data.priceKobo !== undefined) quote.priceKobo = data.priceKobo;
+      if (data.laborKobo !== undefined) quote.laborKobo = data.laborKobo;
+      if (data.materialsKobo !== undefined) quote.materialsKobo = data.materialsKobo;
+      if (data.message !== undefined) quote.message = data.message;
+      if (data.estimatedArrivalMins !== undefined) quote.estimatedArrivalMins = data.estimatedArrivalMins;
+      return quote;
+    });
+  }
+
+  async withdrawQuote(quoteId: string): Promise<Quote> {
+    return this.wrap(() => {
+      const quote = quotes.find((item) => item.id === quoteId);
+      if (!quote || quote.status !== "ACTIVE") throw new Error("This quote is no longer active.");
+      quote.status = "WITHDRAWN";
+      const request = jobRequests.find((item) => item.id === quote.jobRequestId);
+      if (request) request.activeQuoteCount = quotes.filter((item) => item.jobRequestId === request.id && item.status === "ACTIVE").length;
       return quote;
     });
   }
@@ -643,6 +840,9 @@ export class MockApiClient implements ApiClient {
         createdAt: new Date().toISOString(),
         editedAt: null,
         deletedAt: null,
+        attachments: data.attachments ?? [],
+        deliveryStatus: "SENT",
+        readAt: null,
       };
       if (!messages.has(conversationId)) {
         messages.set(conversationId, []);
@@ -707,6 +907,8 @@ export class MockApiClient implements ApiClient {
 
   async requestPayout(data: PayoutDto): Promise<Payout> {
     return this.wrap(() => {
+      if (!technicianWorkspace.bankAccounts.some((account) => account.id === data.bankAccountId)) throw new Error("Choose a saved bank account before requesting a payout.");
+      if (!Number.isInteger(data.amountKobo) || data.amountKobo <= 0 || data.amountKobo > wallet.balanceKobo) throw new Error("Enter a payout amount within your available wallet balance.");
       const payout: Payout = {
         id: `payout-${Date.now()}`,
         amountKobo: data.amountKobo,
@@ -715,6 +917,7 @@ export class MockApiClient implements ApiClient {
         createdAt: new Date().toISOString(),
         processedAt: null,
       };
+      technicianPayouts.unshift(payout);
       transactions.push({
         id: `tx-${Date.now()}`,
         type: "DEBIT",
@@ -800,6 +1003,172 @@ export class MockApiClient implements ApiClient {
       if (!notification) throw new Error("Notification not found.");
       notification.read = true;
       return notification;
+    });
+  }
+
+  async getTechnicianWorkspace(): Promise<TechnicianWorkspace> {
+    return this.wrap(() => this.simulateEmpty
+      ? { ...technicianWorkspace, timeOff: [], payouts: [], bankAccounts: [] }
+      : { ...technicianWorkspace, application: { ...technicianWorkspace.application }, timeOff: [...technicianWorkspace.timeOff], payouts: [...technicianPayouts] });
+  }
+
+  async updateTechnicianWorkspace(action: TechnicianWorkspaceAction): Promise<TechnicianWorkspace> {
+    return this.wrap(() => {
+      if (action.type === "save-application") {
+        technicianWorkspace.application = { ...technicianWorkspace.application, ...action.patch };
+      } else if (action.type === "submit-application") {
+        const { application } = technicianWorkspace;
+        if (!application.displayName.trim() || !application.skills.length || !application.areas.length) {
+          throw new Error("Add your name, at least one skill and one service area before submitting.");
+        }
+        if (!application.kycConsent || !application.kycDocumentName) {
+          throw new Error("Upload an identity document and give consent before submitting.");
+        }
+        application.status = "SUBMITTED";
+        application.submittedAt = new Date().toISOString();
+        application.reviewNote = null;
+      } else if (action.type === "add-time-off") {
+        if (new Date(action.block.endAt) <= new Date(action.block.startAt)) throw new Error("Choose an end time after the start time.");
+        technicianWorkspace.timeOff.unshift({ ...action.block, id: `time-off-${Date.now()}` });
+      } else if (action.type === "remove-time-off") {
+        technicianWorkspace.timeOff = technicianWorkspace.timeOff.filter((item) => item.id !== action.id);
+      } else if (action.type === "update-settings") {
+        technicianWorkspace.settings.notificationsEnabled = action.notificationsEnabled;
+      } else if (action.type === "top-up-wallet") {
+        if (!Number.isInteger(action.amountKobo) || action.amountKobo <= 0 || action.amountKobo > 100000000) throw new Error("Enter a top-up amount between ₦1 and ₦1,000,000.");
+        wallet.balanceKobo += action.amountKobo;
+        wallet.updatedAt = new Date().toISOString();
+        transactions.unshift({ id: `tx-${Date.now()}`, type: "CREDIT", amountKobo: action.amountKobo, currencyCode: "NGN", description: "Demo wallet top-up", createdAt: new Date().toISOString() });
+      } else {
+        if (!action.bankName.trim() || !action.accountName.trim() || !/^\d{10}$/.test(action.accountNumber)) throw new Error("Enter the bank, account name and a 10-digit account number.");
+        technicianWorkspace.bankAccounts.unshift({ id: `bank-${Date.now()}`, bankName: action.bankName.trim(), accountName: action.accountName.trim(), maskedNumber: `**** ${action.accountNumber.slice(-4)}`, isDefault: technicianWorkspace.bankAccounts.length === 0 });
+      }
+      return { ...technicianWorkspace, application: { ...technicianWorkspace.application }, timeOff: [...technicianWorkspace.timeOff], payouts: [...technicianPayouts] };
+    });
+  }
+
+  async getAdminWorkspace(): Promise<AdminWorkspace> {
+    return this.wrap(() => this.simulateEmpty
+      ? { ...adminWorkspace, users: [], flaggedMessages: [], disputes: [], auditLog: [] }
+      : { ...adminWorkspace, users: [...adminWorkspace.users], flaggedMessages: [...adminWorkspace.flaggedMessages], disputes: [...adminWorkspace.disputes], auditLog: [...adminWorkspace.auditLog] });
+  }
+
+  async updateAdminWorkspace(action: AdminWorkspaceAction): Promise<AdminWorkspace> {
+    return this.wrap(() => {
+      const logAction = (name: string, reason: string) => {
+        adminWorkspace.auditLog.unshift({ id: `audit-${Date.now()}`, action: name, actor: "Demo administrator", reason, createdAt: new Date().toISOString() });
+      };
+      switch (action.type) {
+        case "set-user-status": {
+          const user = adminWorkspace.users.find((item) => item.id === action.userId);
+          if (!user) throw new Error("User not found. Refresh the table and try again.");
+          if (!action.reason.trim()) throw new Error("Enter a reason to document this account change.");
+          user.status = action.status;
+          logAction(`${action.status.toLowerCase()} user ${user.displayName}`, action.reason);
+          break;
+        }
+        case "review-technician": {
+          if (action.applicationId !== technicianWorkspace.application.id) throw new Error("Application not found. Refresh the review queue.");
+          if (!["APPROVED", "REJECTED", "CHANGES_REQUESTED", "SUSPENDED"].includes(action.status)) throw new Error("Choose a valid review decision.");
+          if (!action.note.trim()) throw new Error("Add a review note before saving this decision.");
+          technicianWorkspace.application.status = action.status;
+          technicianWorkspace.application.reviewNote = action.note.trim();
+          logAction(`${action.status.toLowerCase()} technician application`, action.note);
+          if (action.status === "APPROVED") {
+            const profile = technicians.find((item) => item.id === "tech-1");
+            if (profile) {
+              profile.publicName = technicianWorkspace.application.displayName;
+              profile.bio = technicianWorkspace.application.bio;
+              profile.approvalStatus = "APPROVED";
+              profile.verified = true;
+            }
+          }
+          break;
+        }
+        case "reveal-kyc": {
+          if (action.applicationId !== technicianWorkspace.application.id) throw new Error("Application not found. Refresh the review queue.");
+          if (!action.reason.trim()) throw new Error("Enter a reason before revealing identity information.");
+          logAction("revealed masked KYC preview", action.reason);
+          break;
+        }
+        case "resolve-flag": {
+          const flag = adminWorkspace.flaggedMessages.find((item) => item.id === action.flagId);
+          if (!flag) throw new Error("Flag not found. Refresh the moderation queue.");
+          if (!action.reason.trim()) throw new Error("Add a moderation note before saving.");
+          flag.status = action.status;
+          logAction(`${action.status.toLowerCase()} flagged message`, action.reason);
+          break;
+        }
+        case "resolve-dispute": {
+          const dispute = adminWorkspace.disputes.find((item) => item.bookingId === action.bookingId);
+          if (!dispute) throw new Error("Dispute not found. Refresh the queue.");
+          if (!action.resolution.trim()) throw new Error("Add a resolution note before closing the dispute.");
+          if (action.refundKobo < 0 || action.refundKobo > (bookings.find((item) => item.id === action.bookingId)?.priceKobo ?? 0)) throw new Error("Refund must be between zero and the booking amount.");
+          dispute.status = "RESOLVED";
+          dispute.resolution = action.resolution.trim();
+          dispute.refundKobo = action.refundKobo;
+          logAction("resolved booking dispute", action.resolution);
+          break;
+        }
+        case "set-commission": {
+          if (action.percent < 0 || action.percent > 30) throw new Error("Commission must be between 0 and 30 percent.");
+          if (!action.reason.trim()) throw new Error("Add a reason for changing the commission rule.");
+          adminWorkspace.commissionPercent = action.percent;
+          logAction("updated commission rule", action.reason);
+          break;
+        }
+        case "save-admin-settings":
+          adminWorkspace.settings = { ...action.settings };
+          logAction("updated platform settings", "Saved settings in the demo console.");
+          break;
+        case "toggle-catalog":
+          adminWorkspace.catalogEnabled[action.itemId] = action.enabled;
+          logAction(`${action.enabled ? "enabled" : "disabled"} catalog item`, action.itemId);
+          break;
+      }
+      return { ...adminWorkspace, users: [...adminWorkspace.users], flaggedMessages: [...adminWorkspace.flaggedMessages], disputes: [...adminWorkspace.disputes], auditLog: [...adminWorkspace.auditLog] };
+    });
+  }
+
+  async getAccountWorkspace(): Promise<AccountWorkspace | null> {
+    return this.wrap(() => this.simulateEmpty ? null : { ...accountWorkspace, addresses: [...accountWorkspace.addresses] });
+  }
+
+  async updateAccountWorkspace(action: AccountWorkspaceAction): Promise<AccountWorkspace> {
+    return this.wrap(() => {
+      switch (action.type) {
+        case "save-profile":
+          if (!action.profile.displayName.trim() || !action.profile.email.trim()) throw new Error("Enter a name and email address before saving.");
+          accountWorkspace.profile = { ...action.profile };
+          break;
+        case "add-address":
+          if (!action.address.label.trim() || !action.address.areaName.trim() || !action.address.landmark.trim()) throw new Error("Complete the label, area and nearby landmark.");
+          accountWorkspace.addresses.push({
+            ...action.address,
+            id: `address-${Date.now()}`,
+            isDefault: accountWorkspace.addresses.length === 0,
+          });
+          break;
+        case "remove-address":
+          accountWorkspace.addresses = accountWorkspace.addresses.filter((item) => item.id !== action.addressId);
+          if (accountWorkspace.addresses.length && !accountWorkspace.addresses.some((item) => item.isDefault)) accountWorkspace.addresses[0]!.isDefault = true;
+          break;
+        case "save-notifications":
+          accountWorkspace.notificationPreferences = { ...action.preferences };
+          break;
+        case "save-settings":
+          accountWorkspace.settings = { ...action.settings };
+          break;
+        case "save-onboarding":
+          accountWorkspace.onboarding = {
+            ...accountWorkspace.onboarding,
+            ...(action.accountType ? { accountType: action.accountType } : {}),
+            ...(action.step ? { step: action.step } : {}),
+            ...(action.complete !== undefined ? { complete: action.complete } : {}),
+          };
+          break;
+      }
+      return { ...accountWorkspace, addresses: [...accountWorkspace.addresses] };
     });
   }
 }

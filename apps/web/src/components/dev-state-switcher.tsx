@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { mockApiClient } from "@servicehub/shared/mock-api-client";
+import { messages } from "@servicehub/shared/messages/en";
 
 export function DevStateSwitcher() {
   const queryClient = useQueryClient();
@@ -10,6 +12,9 @@ export function DevStateSwitcher() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [empty, setEmpty] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [role, setRole] = useState<"Customer" | "Technician" | "Admin">("Customer");
+  const dashboard = role === "Customer" ? "/app" : role === "Technician" ? "/technician" : "/admin";
 
   if (process.env.NODE_ENV === "production") return null;
 
@@ -17,15 +22,23 @@ export function DevStateSwitcher() {
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-4 right-4 bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-mono z-50"
+        className="dev-state-toggle"
+        type="button"
       >
-        Dev State
+        {messages.dev.stateSwitcher}
       </button>
       {isOpen && (
-        <div className="fixed bottom-16 right-4 bg-white border rounded-lg shadow-xl p-4 w-64 z-50">
-          <h3 className="font-semibold text-sm mb-3">State Switcher</h3>
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
+        <div className="dev-state-panel">
+          <h3>State switcher</h3>
+          <label className="field">
+            <span className="field-label">{messages.dev.role}</span>
+            <select className="input" value={role} onChange={(event) => setRole(event.target.value as typeof role)}>
+              <option>Customer</option><option>Technician</option><option>Admin</option>
+            </select>
+          </label>
+          <Link className="button button-secondary dev-role-link" href={dashboard} onClick={() => setIsOpen(false)}>{messages.dev.dashboard}</Link>
+          <div className="dev-state-options">
+            <label>
               <input
                 type="checkbox"
                 checked={loading}
@@ -35,9 +48,9 @@ export function DevStateSwitcher() {
                   void queryClient.invalidateQueries();
                 }}
               />
-              Loading (2s delay)
+              {messages.dev.loading}
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label>
               <input
                 type="checkbox"
                 checked={error}
@@ -47,9 +60,9 @@ export function DevStateSwitcher() {
                   void queryClient.invalidateQueries();
                 }}
               />
-              Error
+              {messages.dev.error}
             </label>
-            <label className="flex items-center gap-2 text-sm">
+            <label>
               <input
                 type="checkbox"
                 checked={empty}
@@ -59,14 +72,27 @@ export function DevStateSwitcher() {
                   void queryClient.invalidateQueries();
                 }}
               />
-              Empty responses
+              {messages.dev.empty}
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={offline}
+                onChange={(event) => {
+                  setOffline(event.target.checked);
+                  mockApiClient.setSimulations({ offline: event.target.checked });
+                  void queryClient.invalidateQueries();
+                }}
+              />
+              {messages.dev.offline}
             </label>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="mt-3 w-full bg-gray-100 text-gray-700 text-sm py-1 rounded"
+            className="button button-secondary dev-state-close"
+            type="button"
           >
-            Close
+            {messages.dev.close}
           </button>
         </div>
       )}
