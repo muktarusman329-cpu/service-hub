@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { MarketListing } from "@servicehub/shared/api-client";
-import { useMarketplaceListing, useMarkMarketplaceListingSold } from "@servicehub/shared/hooks/use-marketplace";
+import { useCreateMarketplaceOrder, useMarketplaceListing, useMarkMarketplaceListingSold, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
 
 const categoryLabels: Record<MarketListing["category"], string> = {
   clothing: "Clothing & style",
@@ -34,15 +34,18 @@ function formatPrice(priceKobo: number) {
 export function MarketplaceListingDetail({ id }: { id: string }) {
   const { data: listing, isLoading, isError, error, refetch } = useMarketplaceListing(id);
   const markSold = useMarkMarketplaceListingSold();
+  const createOrder = useCreateMarketplaceOrder();
+  const toggleSaved = useToggleSavedMarketplaceListing();
 
   if (isLoading) return <div className="marketplace-state" role="status">Loading this find…</div>;
-  if (isError || !listing) return (
+  if (isError) return (
     <div className="marketplace-state marketplace-state-error" role="alert">
-      <strong>This listing isn’t available.</strong><span>{error instanceof Error ? error.message : "It may have sold or been removed."}</span>
+      <strong>This listing couldn’t be loaded.</strong><span>{error instanceof Error ? error.message : "Check your connection and try again."}</span>
       <button type="button" className="button button-secondary" onClick={() => void refetch()}>Try again</button>
       <Link href="/marketplace" className="button button-secondary">Back to the marketplace</Link>
     </div>
   );
+  if (!listing) return <div className="marketplace-state marketplace-empty"><h2>This item is not available.</h2><p>It may have sold or been removed. Browse other finds around Minna.</p><Link className="button button-primary" href="/marketplace">Browse the marketplace</Link></div>;
 
   return (
     <div className="marketplace-detail">
@@ -59,7 +62,7 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
           <p className="marketplace-detail-description">{listing.description}</p>
           <div className="marketplace-seller-card">
             <span className="marketplace-seller-avatar" aria-hidden="true">{(listing.seller.displayName || "Seller").slice(0, 1).toUpperCase()}</span>
-            <div><span className="landing-kicker">LISTED BY</span><strong>{listing.seller.displayName || "ServiceHub seller"}</strong><span>{listing.area.name}, {listing.city.name}</span></div>
+            <div><span className="landing-kicker">LISTED BY</span><Link href={`/marketplace/sellers/${listing.seller.id}`}><strong>{listing.seller.displayName || "ServiceHub seller"}</strong></Link><span>{listing.area.name}, {listing.city.name}</span></div>
           </div>
           {listing.seller.id === "seller-fatima" && (
             <div className="marketplace-detail-actions">
@@ -71,7 +74,15 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
             </div>
           )}
           <div className="marketplace-detail-actions">
-            <Link href={`/sign-in?next=${encodeURIComponent(`/marketplace/${listing.id}`)}`} className="button button-primary">Sign in to enquire</Link>
+            <button type="button" className="button button-secondary" disabled={toggleSaved.isPending} onClick={() => toggleSaved.mutate(listing.id)}>
+              {toggleSaved.data ? "Saved" : "Save item"}
+            </button>
+            {listing.seller.id !== "seller-fatima" && <button type="button" className="button button-primary" disabled={createOrder.isPending} onClick={() => createOrder.mutate(listing.id)}>
+              {createOrder.isPending ? "Sending request…" : "Request to buy"}
+            </button>}
+            {createOrder.isSuccess && <p className="form-success" role="status">Request sent. Follow updates in your marketplace orders.</p>}
+            {(createOrder.isError || toggleSaved.isError) && <p className="form-error" role="alert">{createOrder.error?.message ?? toggleSaved.error?.message}</p>}
+            <Link href="/marketplace/orders" className="marketplace-text-link">View marketplace orders</Link>
             <p>Meet locally and check the item before agreeing to buy. ServiceHub does not process payment for marketplace items.</p>
           </div>
         </article>

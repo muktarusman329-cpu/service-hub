@@ -7,11 +7,12 @@ export const metadata: Metadata = {
   description: "Shop pre-loved clothing, home goods, electronics, books and more from people around Minna.",
 };
 
-export default function MarketplacePage() {
+export default async function MarketplacePage({ searchParams }: { searchParams: Promise<{ query?: string }> }) {
+  const { query } = await searchParams;
   return (
     <PublicPageShell>
       <main className="public-container marketplace-content">
-        <MarketplaceBrowser />
+        <MarketplaceBrowser initialQuery={query ?? ""} />
       </main>
     </PublicPageShell>
   );

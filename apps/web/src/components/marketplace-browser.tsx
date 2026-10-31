@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { MarketListing, MarketListingCategory } from "@servicehub/shared/api-client";
-import { useMarketplaceListings } from "@servicehub/shared/hooks/use-marketplace";
+import { useMarketplaceListings, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
 
 const categories: Array<{ value: MarketListingCategory | ""; label: string }> = [
   { value: "", label: "Everything" },
@@ -35,13 +35,14 @@ function formatPrice(priceKobo: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(priceKobo / 100);
 }
 
-export function MarketplaceBrowser() {
+export function MarketplaceBrowser({ initialQuery = "" }: { initialQuery?: string }) {
   const [category, setCategory] = useState<MarketListingCategory | "">("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialQuery);
   const { data: listings = [], isLoading, isError, error, refetch } = useMarketplaceListings({
     ...(category ? { category } : {}),
     ...(search.trim() ? { query: search.trim() } : {}),
   });
+  const toggleSaved = useToggleSavedMarketplaceListing();
 
   return (
     <>
@@ -54,6 +55,7 @@ export function MarketplaceBrowser() {
             <a href="#marketplace-listings" className="button button-primary">Explore the market <span aria-hidden="true">↓</span></a>
             <Link href="/marketplace/sell" className="marketplace-text-link">Have something to sell? <span>List it here →</span></Link>
           </div>
+          <nav className="marketplace-quick-links" aria-label="Marketplace account links"><Link href="/marketplace/saved">Saved items</Link><Link href="/marketplace/orders">Your orders</Link><Link href="/marketplace/sell">Your listings</Link></nav>
           <div className="marketplace-trust-note"><span aria-hidden="true">✓</span> Local finds · Reuse more · Connect directly</div>
         </div>
         <div className="marketplace-hero-art" aria-hidden="true">
@@ -85,14 +87,20 @@ export function MarketplaceBrowser() {
             : listings.length ? (
               <div className="marketplace-listing-grid">
                 {listings.map((listing) => (
-                  <Link key={listing.id} href={`/marketplace/${listing.id}`} className="marketplace-listing-card">
-                    <span className={`marketplace-listing-art marketplace-art-${listing.category}`} aria-hidden="true">{illustrations[listing.category]}</span>
-                    <span className="marketplace-listing-condition">{conditions[listing.condition]}</span>
-                    <span className="marketplace-listing-category">{categories.find((item) => item.value === listing.category)?.label}</span>
-                    <h3>{listing.title}</h3>
-                    <span className="marketplace-listing-price">{formatPrice(listing.priceKobo)}</span>
-                    <span className="marketplace-listing-meta">{listing.area.name} · {listing.city.name}</span>
-                  </Link>
+                  <article key={listing.id} className="marketplace-listing-card">
+                    <Link href={`/marketplace/${listing.id}`} className="marketplace-listing-card-link">
+                      <span className={`marketplace-listing-art marketplace-art-${listing.category}`} aria-hidden="true">{illustrations[listing.category]}</span>
+                      <span className="marketplace-listing-condition">{conditions[listing.condition]}</span>
+                      <span className="marketplace-listing-category">{categories.find((item) => item.value === listing.category)?.label}</span>
+                      <h3>{listing.title}</h3>
+                      <span className="marketplace-listing-price">{formatPrice(listing.priceKobo)}</span>
+                      <span className="marketplace-listing-meta">{listing.area.name} · {listing.city.name}</span>
+                    </Link>
+                    <button className="button button-secondary marketplace-save-button" type="button" disabled={toggleSaved.isPending} onClick={() => toggleSaved.mutate(listing.id)}>
+                      Save item
+                    </button>
+                    {toggleSaved.isError && <p className="form-error" role="alert">{toggleSaved.error.message}</p>}
+                  </article>
                 ))}
               </div>
             ) : (

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import type { MarketListing, MarketListingCategory, MarketListingCondition } from "@servicehub/shared/api-client";
 import { minnaAreas } from "@servicehub/shared/fixtures/areas";
-import { useCreateMarketplaceListing, useMarkMarketplaceListingSold, useMyMarketplaceListings } from "@servicehub/shared/hooks/use-marketplace";
+import { useCreateMarketplaceListing, useMarkMarketplaceListingSold, useMyMarketplaceListings, useUpdateMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
 
 const categoryChoices: Array<{ value: MarketListingCategory; label: string }> = [
   { value: "clothing", label: "Clothing & style" },
@@ -30,6 +30,7 @@ const statusLabels: Record<MarketListing["status"], string> = {
 export function MarketplaceSellerWorkspace() {
   const { data: listings = [], isLoading, isError, error, refetch } = useMyMarketplaceListings();
   const createListing = useCreateMarketplaceListing();
+  const updateListing = useUpdateMarketplaceListing();
   const markSold = useMarkMarketplaceListingSold();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -37,28 +38,42 @@ export function MarketplaceSellerWorkspace() {
   const [condition, setCondition] = useState<MarketListingCondition>("GOOD");
   const [price, setPrice] = useState("");
   const [areaName, setAreaName] = useState<string>(minnaAreas[0]?.name ?? "");
+  const [imageNames, setImageNames] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
-    createListing.mutate({
+    const data = {
       title: title.trim(),
       description: description.trim(),
       category,
       condition,
       priceKobo: Math.round(Number(price) * 100),
       areaName,
-    }, {
+      mediaKeys: imageNames,
+    };
+    const onSuccess = () => {
+      setTitle("");
+      setDescription("");
+      setPrice("");
+      setImageNames([]);
+      setEditingId(null);
+      setMessage("Your item is pending review. It will appear in the market after approval.");
+    };
+    if (editingId) {
+      updateListing.mutate({ id: editingId, data }, { onSuccess });
+    } else {
+      createListing.mutate(data, {
       onSuccess: () => {
-        setTitle("");
-        setDescription("");
-        setPrice("");
-        setMessage("Your item is pending review. It will appear in the market after approval.");
+        onSuccess();
       },
-    });
+      });
+    }
   }
 
+  const isSaving = createListing.isPending || updateListing.isPending;
   return (
     <div className="marketplace-seller-layout">
       <section className="marketplace-seller-intro">
@@ -69,7 +84,7 @@ export function MarketplaceSellerWorkspace() {
       </section>
       <div className="marketplace-seller-form-layout">
         <form className="marketplace-seller-form" onSubmit={(event) => void submit(event)}>
-          <div><span className="landing-kicker">ITEM DETAILS</span><h2>Create a listing</h2><p>Be clear and honest about the item’s condition.</p></div>
+          <div><span className="landing-kicker">ITEM DETAILS</span><h2>{editingId ? "Edit your listing" : "Create a listing"}</h2><p>Be clear and honest about the item’s condition.</p></div>
           <label>Item name<input className="input" required minLength={4} maxLength={120} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Study desk in good condition" /></label>
           <div className="marketplace-form-row">
             <label>Category<select className="input" value={category} onChange={(event) => setCategory(event.target.value as MarketListingCategory)}>{categoryChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select></label>
@@ -80,10 +95,13 @@ export function MarketplaceSellerWorkspace() {
             <label>Area in Minna<select className="input" required value={areaName} onChange={(event) => setAreaName(event.target.value)}>{minnaAreas.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
           </div>
           <label>Description<textarea className="input marketplace-description-input" required minLength={20} maxLength={2000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe the item, its condition, size or anything a buyer should know." /></label>
-          {createListing.isError && <p className="form-error" role="alert">{createListing.error.message}</p>}
+          <label>Photos<input className="input" type="file" accept="image/*" multiple onChange={(event) => setImageNames(Array.from(event.target.files ?? []).map((file) => file.name))} /></label>
+          {imageNames.length > 0 && <p className="marketplace-form-note">Selected for this preview: {imageNames.join(", ")}</p>}
+          {(createListing.isError || updateListing.isError) && <p className="form-error" role="alert">{createListing.error?.message ?? updateListing.error?.message}</p>}
           {message && <p className="form-success" role="status">{message}</p>}
-          <button type="submit" className="button button-primary" disabled={createListing.isPending || !areaName}>{createListing.isPending ? "Sending for review…" : "Submit listing for review"}</button>
-          <p className="marketplace-form-note">Demo listing only. No payment is collected.</p>
+          <button type="submit" className="button button-primary" disabled={isSaving || !areaName}>{isSaving ? "Saving…" : editingId ? "Save changes for review" : "Submit listing for review"}</button>
+          {editingId && <button type="button" className="button button-secondary" onClick={() => { setEditingId(null); setTitle(""); setDescription(""); setPrice(""); setImageNames([]); }}>Cancel edit</button>}
+          <p className="marketplace-form-note">Demo listing only. Image files stay in this browser preview; no payment is collected.</p>
         </form>
         <aside className="marketplace-seller-side">
           <div className="marketplace-seller-tip"><span aria-hidden="true">✦</span><h3>Make your listing shine</h3><p>Use a specific title, pick the right condition, and mention wear or missing parts in your description.</p></div>
@@ -94,6 +112,7 @@ export function MarketplaceSellerWorkspace() {
                 : listings.length ? listings.map((listing) => (
                   <div key={listing.id} className="marketplace-my-listing">
                     <div><strong>{listing.title}</strong><span>{statusLabels[listing.status]}</span></div>
+                    {listing.status !== "SOLD" && <button type="button" className="button button-secondary" onClick={() => { setEditingId(listing.id); setTitle(listing.title); setDescription(listing.description); setCategory(listing.category); setCondition(listing.condition); setPrice(String(listing.priceKobo / 100)); setAreaName(listing.area.name); setImageNames(listing.mediaKeys ?? []); }}>Edit listing</button>}
                     {listing.status === "PUBLISHED" && <button type="button" className="button button-secondary" disabled={markSold.isPending} onClick={() => markSold.mutate(listing.id)}>{markSold.isPending ? "Updating…" : "Mark sold"}</button>}
                     {listing.moderationNote && <p>{listing.moderationNote}</p>}
                     {markSold.isError && <p className="form-error" role="alert">{markSold.error.message}</p>}
