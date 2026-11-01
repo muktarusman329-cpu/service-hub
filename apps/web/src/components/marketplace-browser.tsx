@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { MarketListing, MarketListingCategory } from "@servicehub/shared/api-client";
 import { useMarketplaceListings, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
+import { AppPhoto, marketplacePhotoUrl } from "@/components/app-photo";
 import { messages } from "@servicehub/shared/messages/en";
 
 const categories: Array<{ value: MarketListingCategory | ""; label: string }> = [
@@ -80,7 +81,7 @@ export function MarketplaceBrowser({ initialQuery = "" }: { initialQuery?: strin
                 {listings.map((listing) => (
                   <article key={listing.id} className="marketplace-listing-card">
                     <Link href={`/marketplace/${listing.id}`} className="marketplace-listing-card-link">
-                      <span className={`marketplace-listing-art marketplace-art-${listing.category}`} role="img" aria-label={`${listing.title} photo placeholder`} />
+                      <AppPhoto src={marketplacePhotoUrl(listing.category)} alt="" className="marketplace-listing-art" sizes="(max-width: 800px) 50vw, 25vw" />
                       <span className="marketplace-listing-condition">{conditions[listing.condition]}</span>
                       <span className="marketplace-listing-category">{categories.find((item) => item.value === listing.category)?.label}</span>
                       <h3>{listing.title}</h3>

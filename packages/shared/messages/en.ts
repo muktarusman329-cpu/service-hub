@@ -65,7 +65,7 @@ export const messages = {
     verifiedFact: "Verified technicians",
     quoteFact: "Compare quotes",
     paymentFact: "Pay safely in the app",
-    heroPhotoAlt: "Photo of a home in Minna",
+    heroPhotoAlt: "Technician servicing an air conditioner",
     popularServices: "Popular services",
     viewAllServices: "View all services",
     servicePriceGuidance: {

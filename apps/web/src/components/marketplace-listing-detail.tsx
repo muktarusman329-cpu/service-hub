@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { MarketListing } from "@servicehub/shared/api-client";
 import { useCreateMarketplaceOrder, useMarketplaceListing, useMarkMarketplaceListingSold, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
+import { AppPhoto, marketplacePhotoUrl } from "@/components/app-photo";
 
 const categoryLabels: Record<MarketListing["category"], string> = {
   clothing: "Clothing & style",
@@ -52,7 +53,7 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
     <div className="marketplace-detail">
       <nav className="public-breadcrumb" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/marketplace">Marketplace</Link><span>/</span><span aria-current="page">{listing.title}</span></nav>
       <div className="marketplace-detail-layout">
-        <div className={`marketplace-detail-art marketplace-art-${listing.category}`} role="img" aria-label={`${listing.title} photo placeholder`} />
+        <AppPhoto src={marketplacePhotoUrl(listing.category)} alt={listing.title} className="marketplace-detail-art" sizes="(max-width: 800px) 100vw, 50vw" />
         <article className="marketplace-detail-info">
           <div className="marketplace-category-label"><AppIcon name={categoryIcons[listing.category]} size={16} />{categoryLabels[listing.category]}</div>
           <h1>{listing.title}</h1>

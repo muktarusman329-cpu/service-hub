@@ -11,15 +11,15 @@ import { useTechnicians } from "@servicehub/shared/hooks/use-technicians";
 import { useCatalog } from "@servicehub/shared/hooks/use-catalog";
 import { AppIcon, getAppIconName } from "@/components/app-icon";
 import { PublicHeader } from "@/components/public-header";
-
-function PhotoPlaceholder({ label, className = "" }: { label: string; className?: string }) {
-  return <div className={`photo-placeholder ${className}`} role="img" aria-label={label} />;
-}
+import { AppPhoto, heroPhotoUrl, servicePhotoUrl } from "@/components/app-photo";
 
 function TechnicianCard({ technician }: { technician: TechnicianPublic }) {
+  const serviceName = technician.skills[0]?.service.name ?? "";
+
   return (
     <Link href={`/technicians/${technician.id}`} className="landing-v2-technician-card">
-      <PhotoPlaceholder label={`${messages.landing.demoImageAlt}: ${technician.publicName}`} className="landing-v2-technician-photo" />
+      {/* Illustrative service photos; they are not photos of the demo technicians. */}
+      <AppPhoto src={servicePhotoUrl(serviceName)} alt="" className="landing-v2-technician-photo" sizes="(max-width: 800px) 100vw, 25vw" />
       <div className="landing-v2-technician-details">
         <h3>{technician.publicName}</h3>
         <p>{technician.skills[0]?.service.name ?? messages.landing.technicians}</p>
@@ -89,7 +89,7 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <PhotoPlaceholder label={messages.landing.heroPhotoAlt} className="landing-v2-hero-photo" />
+          <AppPhoto src={heroPhotoUrl()} alt={messages.landing.heroPhotoAlt} className="landing-v2-hero-photo" sizes="(max-width: 800px) 100vw, 50vw" priority />
         </div>
       </section>
 
@@ -102,10 +102,13 @@ export default function LandingPage() {
           <div className="landing-v2-service-grid">
             {serviceEntries.map((service) => (
               <Link key={service.id} href={`/services/${service.categorySlug}#${service.slug}`} className="landing-v2-service-card">
-                <AppIcon name={getAppIconName(service.iconKey)} />
-                <h3>{service.name}</h3>
-                <span>{messages.landing.priceFrom} {messages.landing.servicePriceGuidance[service.slug as keyof typeof messages.landing.servicePriceGuidance]}</span>
-                <AppIcon className="landing-v2-card-arrow" name="arrow-right" size={16} />
+                <AppPhoto src={servicePhotoUrl(service.slug)} alt="" className="landing-v2-service-photo" sizes="(max-width: 800px) 50vw, 25vw" />
+                <div className="landing-v2-service-body">
+                  <AppIcon name={getAppIconName(service.iconKey)} />
+                  <h3>{service.name}</h3>
+                  <span>{messages.landing.priceFrom} {messages.landing.servicePriceGuidance[service.slug as keyof typeof messages.landing.servicePriceGuidance]}</span>
+                  <AppIcon className="landing-v2-card-arrow" name="arrow-right" size={16} />
+                </div>
               </Link>
             ))}
           </div>
