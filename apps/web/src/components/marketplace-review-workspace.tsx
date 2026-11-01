@@ -2,6 +2,7 @@
 
 import type { MarketListing } from "@servicehub/shared/api-client";
 import { useMarketplaceListings, useReviewMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
+import { AppIcon } from "@/components/app-icon";
 
 export function MarketplaceReviewWorkspace() {
   const { data: listings = [], isLoading, isError, error, refetch } = useMarketplaceListings({ status: "PENDING_REVIEW" });
@@ -24,7 +25,7 @@ export function MarketplaceReviewWorkspace() {
               </div>
             </article>
           ))}</div>
-            : <section className="public-empty-state"><span className="public-empty-icon" aria-hidden="true">✓</span><h2>All caught up</h2><p>No listings are waiting for review. Approved listings show on the public marketplace.</p></section>}
+            : <section className="public-empty-state"><span className="public-empty-icon"><AppIcon name="check" /></span><h2>All caught up</h2><p>No listings are waiting for review. Approved listings show on the public marketplace.</p></section>}
     </main>
   );
 }

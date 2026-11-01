@@ -4,8 +4,8 @@ type ScreenStatus = "NOT STARTED" | "IN PROGRESS" | "DONE";
 type Screen = { area: string; route: string; name: string; status: ScreenStatus; href?: string };
 
 const screens: Screen[] = [
-  { area: "Public", route: "/", name: "Landing page", status: "IN PROGRESS" },
-  { area: "Public", route: "/landing", name: "Landing alias", status: "IN PROGRESS" },
+  { area: "Public", route: "/", name: "Landing page", status: "DONE" },
+  { area: "Public", route: "/landing", name: "Landing alias", status: "DONE" },
   { area: "Public", route: "/services", name: "Services directory", status: "IN PROGRESS" },
   { area: "Public", route: "/services/:slug", name: "Service detail", status: "IN PROGRESS", href: "/services/plumbing" },
   { area: "Public", route: "/technicians", name: "Technician directory", status: "IN PROGRESS" },
@@ -98,7 +98,7 @@ export default function DevScreensPage() {
     <main className="dev-screens-page">
       <div className="dev-screens-content">
         <div className="page-heading">
-          <div><div className="eyebrow">FRONTEND REVIEW</div><h1>Dev screens</h1><p className="subtle">DONE means the route has its mock states and core interactions. Other routes still need completion or review.</p></div>
+          <div><div className="eyebrow">FRONTEND REVIEW</div><h1>Dev screens</h1><p className="subtle">DONE means the route has its mock states and core interactions. Other routes still need completion or review. Landing technician cards use demo profiles from MockApiClient.</p></div>
         </div>
         <div className="dev-status-legend" aria-label="Screen status legend">
           {(["NOT STARTED", "IN PROGRESS", "DONE"] as const).map((status) => <span className={`screen-status ${statusClass[status]}`} key={status}>{status}</span>)}

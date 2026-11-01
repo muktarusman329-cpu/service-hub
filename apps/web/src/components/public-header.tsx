@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { messages } from "@servicehub/shared/messages/en";
+import { AppIcon } from "@/components/app-icon";
 
 type PublicHeaderProps = {
   variant: "landing" | "public";
@@ -23,43 +25,38 @@ export function PublicHeader({ variant }: PublicHeaderProps) {
     <header className={headerClass}>
       <div className={containerClass}>
         <Link href="/" className="landing-brand" aria-label="ServiceHub home" onClick={closeMenu}>
-          <span className="landing-brand-mark">S</span>
           <span>ServiceHub</span>
         </Link>
         <nav className={navClass} aria-label="Main navigation">
-          <Link href="/services">Services</Link>
-          <Link href="/marketplace">Marketplace</Link>
-          <Link href="/technicians">Technicians</Link>
-          <Link href="/help">Help</Link>
+          <Link href="/services">{messages.landing.services}</Link>
+          <Link href="/technicians">{messages.landing.technicians}</Link>
+          <Link href="/marketplace">{messages.landing.marketplace}</Link>
+          <Link href="/help">{messages.landing.help}</Link>
         </nav>
         <div className={actionsClass}>
-          <Link href="/sign-in" className="landing-sign-in">Sign in</Link>
-          <Link href="/app/jobs/new" className="button button-primary">Request a service</Link>
+          <Link href="/sign-in" className="landing-sign-in">{messages.landing.signIn}</Link>
+          <Link href="/app/jobs/new" className="button button-primary">{messages.landing.requestService}</Link>
           <button
             type="button"
             className="mobile-menu-toggle"
-            aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={isMenuOpen ? messages.landing.closeNavigationMenu : messages.landing.navigationMenu}
             aria-expanded={isMenuOpen}
             aria-controls="public-mobile-menu"
             onClick={() => setIsMenuOpen((open) => !open)}
           >
-            <span className="mobile-menu-icon" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
+            <AppIcon name={isMenuOpen ? "close" : "menu"} />
           </button>
         </div>
       </div>
       {isMenuOpen && (
         <nav id="public-mobile-menu" className={`mobile-menu ${landing ? "mobile-menu-landing" : "mobile-menu-public"}`} aria-label="Mobile navigation">
-          <Link href="/services" onClick={closeMenu}>Services</Link>
-          <Link href="/marketplace" onClick={closeMenu}>Marketplace</Link>
-          <Link href="/technicians" onClick={closeMenu}>Browse technicians</Link>
-          <Link href="/help" onClick={closeMenu}>Help centre</Link>
-          <Link href="/technician/onboarding" onClick={closeMenu}>Become a technician</Link>
-          <Link href="/sign-in" onClick={closeMenu}>Sign in</Link>
-          <Link href="/app/jobs/new" className="mobile-menu-cta" onClick={closeMenu}>Request a service <span aria-hidden="true">→</span></Link>
+          <Link href="/services" onClick={closeMenu}>{messages.landing.services}</Link>
+          <Link href="/technicians" onClick={closeMenu}>{messages.landing.technicians}</Link>
+          <Link href="/marketplace" onClick={closeMenu}>{messages.landing.marketplace}</Link>
+          <Link href="/help" onClick={closeMenu}>{messages.landing.help}</Link>
+          <Link href="/technician/onboarding" onClick={closeMenu}>{messages.landing.becomeTechnician}</Link>
+          <Link href="/sign-in" onClick={closeMenu}>{messages.landing.signIn}</Link>
+          <Link href="/app/jobs/new" className="mobile-menu-cta" onClick={closeMenu}>{messages.landing.requestService}</Link>
         </nav>
       )}
     </header>

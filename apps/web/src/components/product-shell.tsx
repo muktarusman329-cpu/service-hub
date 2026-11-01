@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@servicehub/ui/components";
 import { SignOutButton } from "@/components/sign-out-button";
+import { AppIcon } from "@/components/app-icon";
 
 type Audience = "Customer" | "Technician" | "Admin";
 type NavigationItem = { label: string; href: string };
@@ -56,7 +57,7 @@ export function ProductShell({ audience, children }: { audience: Audience; child
   return <div className="shell">
     <header className="topbar">
       <div className="topbar-main">
-        <Link className="brand" href="/"><span className="brand-mark">S</span> ServiceHub</Link>
+        <Link className="brand" href="/">ServiceHub</Link>
         <form className="search-box" role="search" action="/marketplace" method="get">
           <input className="search-input" name="query" type="search" aria-label="Search marketplace items" placeholder="Search marketplace items" />
           <Button className="search-button" type="submit">Search</Button>
@@ -74,7 +75,7 @@ export function ProductShell({ audience, children }: { audience: Audience; child
         <span className="dashboard-nav-label">{audience} workspace</span>
         {items.map((item, index) => <Link key={item.href} className={`dashboard-nav-link ${index === 0 ? "active" : ""}`} href={item.href}>{item.label}</Link>)}
       </aside>
-      <main className="main"><div className="content"><div className="breadcrumb" aria-label="Breadcrumb"><span>Minna</span><span aria-hidden="true">›</span><span>{audience}</span><span aria-hidden="true">›</span><Link href={home}>Workspace</Link></div>{children}</div></main>
+      <main className="main"><div className="content"><div className="breadcrumb" aria-label="Breadcrumb"><span>Minna</span><AppIcon name="chevron-right" size={16} /><span>{audience}</span><AppIcon name="chevron-right" size={16} /><Link href={home}>Workspace</Link></div>{children}</div></main>
     </div>
     <nav className="mobile-tab-bar" aria-label={`${audience} main navigation`}>
       {items.filter((item) => bottomNavigation[audience].includes(item.label)).map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}

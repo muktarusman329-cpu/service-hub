@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { AppIcon } from "@/components/app-icon";
 import type { MarketListing, MarketListingCategory, MarketListingCondition } from "@servicehub/shared/api-client";
 import { minnaAreas } from "@servicehub/shared/fixtures/areas";
 import { useCreateMarketplaceListing, useMarkMarketplaceListingSold, useMyMarketplaceListings, useUpdateMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
@@ -80,7 +81,7 @@ export function MarketplaceSellerWorkspace() {
         <span className="landing-kicker">SELL ON SERVICEHUB</span>
         <h1>Pass a good find along.</h1>
         <p>List quality pre-loved items for people around Minna. Every listing is reviewed before it appears in the market.</p>
-        <div className="marketplace-seller-points"><span>✓ Free to list in this preview</span><span>✓ Meet buyers locally</span><span>✓ You control when an item is sold</span></div>
+        <div className="marketplace-seller-points"><span><AppIcon name="check" size={16} /> Free to list in this preview</span><span><AppIcon name="check" size={16} /> Meet buyers locally</span><span><AppIcon name="check" size={16} /> You control when an item is sold</span></div>
       </section>
       <div className="marketplace-seller-form-layout">
         <form className="marketplace-seller-form" onSubmit={(event) => void submit(event)}>
@@ -104,7 +105,7 @@ export function MarketplaceSellerWorkspace() {
           <p className="marketplace-form-note">Demo listing only. Image files stay in this browser preview; no payment is collected.</p>
         </form>
         <aside className="marketplace-seller-side">
-          <div className="marketplace-seller-tip"><span aria-hidden="true">✦</span><h3>Make your listing shine</h3><p>Use a specific title, pick the right condition, and mention wear or missing parts in your description.</p></div>
+          <div className="marketplace-seller-tip"><AppIcon name="circle-help" /><h3>Make your listing clear</h3><p>Use a specific title, pick the right condition, and mention wear or missing parts in your description.</p></div>
           <div className="marketplace-my-listings">
             <span className="landing-kicker">YOUR ITEMS · MOCK SELLER: FATIMA SANI</span><h2>Your listings</h2>
             {isLoading ? <p className="marketplace-state" role="status">Loading your listings…</p>
@@ -118,7 +119,7 @@ export function MarketplaceSellerWorkspace() {
                     {markSold.isError && <p className="form-error" role="alert">{markSold.error.message}</p>}
                   </div>
                 )) : <p className="marketplace-form-note">No listings yet. Submit an item to see it here.</p>}
-            <Link href="/marketplace" className="marketplace-text-link">Browse approved listings →</Link>
+            <Link href="/marketplace" className="marketplace-text-link">Browse approved listings <AppIcon name="arrow-right" size={16} /></Link>
           </div>
         </aside>
       </div>

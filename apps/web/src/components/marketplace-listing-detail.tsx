@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { MarketListing } from "@servicehub/shared/api-client";
 import { useCreateMarketplaceOrder, useMarketplaceListing, useMarkMarketplaceListingSold, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
+import { AppIcon, type AppIconName } from "@/components/app-icon";
 
 const categoryLabels: Record<MarketListing["category"], string> = {
   clothing: "Clothing & style",
@@ -18,13 +19,13 @@ const conditionLabels: Record<MarketListing["condition"], string> = {
   GOOD: "Good",
   FAIR: "Fair",
 };
-const categoryArt: Record<MarketListing["category"], string> = {
-  clothing: "✳",
-  "home-goods": "⌂",
-  electronics: "▣",
-  books: "▤",
-  furniture: "▱",
-  other: "✦",
+const categoryIcons: Record<MarketListing["category"], AppIconName> = {
+  clothing: "shirt",
+  "home-goods": "home",
+  electronics: "smartphone",
+  books: "book-open",
+  furniture: "armchair",
+  other: "package",
 };
 
 function formatPrice(priceKobo: number) {
@@ -51,9 +52,9 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
     <div className="marketplace-detail">
       <nav className="public-breadcrumb" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/marketplace">Marketplace</Link><span>/</span><span aria-current="page">{listing.title}</span></nav>
       <div className="marketplace-detail-layout">
-        <div className={`marketplace-detail-art marketplace-art-${listing.category}`} aria-hidden="true">{categoryArt[listing.category]}</div>
+        <div className={`marketplace-detail-art marketplace-art-${listing.category}`} role="img" aria-label={`${listing.title} photo placeholder`} />
         <article className="marketplace-detail-info">
-          <span className="landing-kicker">{categoryLabels[listing.category]}</span>
+          <div className="marketplace-category-label"><AppIcon name={categoryIcons[listing.category]} size={16} />{categoryLabels[listing.category]}</div>
           <h1>{listing.title}</h1>
           <div className="marketplace-detail-price">{formatPrice(listing.priceKobo)}</div>
           <div className="marketplace-detail-tags"><span>{conditionLabels[listing.condition]}</span><span>{listing.area.name}, {listing.city.name}</span></div>
@@ -62,7 +63,7 @@ export function MarketplaceListingDetail({ id }: { id: string }) {
           <p className="marketplace-detail-description">{listing.description}</p>
           <div className="marketplace-seller-card">
             <span className="marketplace-seller-avatar" aria-hidden="true">{(listing.seller.displayName || "Seller").slice(0, 1).toUpperCase()}</span>
-            <div><span className="landing-kicker">LISTED BY</span><Link href={`/marketplace/sellers/${listing.seller.id}`}><strong>{listing.seller.displayName || "ServiceHub seller"}</strong></Link><span>{listing.area.name}, {listing.city.name}</span></div>
+            <div><Link href={`/marketplace/sellers/${listing.seller.id}`}><strong>{listing.seller.displayName || "ServiceHub seller"}</strong></Link><span>{listing.area.name}, {listing.city.name}</span></div>
           </div>
           {listing.seller.id === "seller-fatima" && (
             <div className="marketplace-detail-actions">

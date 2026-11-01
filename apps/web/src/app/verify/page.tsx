@@ -60,7 +60,7 @@ export default function VerifyPage() {
 
   if (!pending) return <main className="auth-page"><section className="auth-card"><h1>Check your details</h1><p className="subtle">Return to sign in and request a new code.</p><Link className="button button-primary auth-submit" href="/sign-in">Back to sign in</Link></section></main>;
   return <main className="auth-page"><section className="auth-card">
-    <Link className="brand auth-brand" href="/"><span className="brand-mark">S</span>ServiceHub</Link>
+    <Link className="brand auth-brand" href="/">ServiceHub</Link>
     <p className="eyebrow">Account security</p><h1>{challenge ? "Two-step verification" : "Enter your code"}</h1>
     <p className="subtle">{challenge ? "Enter the code from your authenticator app, or a recovery code." : <>We sent a six-digit code to <strong>{pending.destination}</strong>.</>}</p>
     {challenge && recoveryMode ? <input className="input recovery-input" aria-label="Recovery code" autoComplete="one-time-code" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())} placeholder="Recovery code" /> : <div className="otp-inputs" role="group" aria-label="Six digit verification code">{digits.map((digit, index) => <input key={index} ref={(el) => { inputs.current[index] = el; }} className="input otp-input" aria-label={`Digit ${index + 1}`} inputMode="numeric" autoComplete={index === 0 ? "one-time-code" : "off"} maxLength={1} value={digit} onChange={(e) => update(index, e.target.value)} onKeyDown={(e) => keyDown(index, e)} onPaste={paste} />)}</div>}

@@ -4,31 +4,33 @@ import Link from "next/link";
 import { useState } from "react";
 import type { MarketListing, MarketListingCategory } from "@servicehub/shared/api-client";
 import { useMarketplaceListings, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
+import { AppIcon, type AppIconName } from "@/components/app-icon";
+import { messages } from "@servicehub/shared/messages/en";
 
 const categories: Array<{ value: MarketListingCategory | ""; label: string }> = [
-  { value: "", label: "Everything" },
-  { value: "clothing", label: "Clothing & style" },
-  { value: "home-goods", label: "Home & kitchen" },
-  { value: "electronics", label: "Electronics" },
-  { value: "books", label: "Books & study" },
-  { value: "furniture", label: "Furniture" },
-  { value: "other", label: "Other finds" },
+  { value: "", label: messages.marketplace.everything },
+  { value: "clothing", label: messages.marketplace.clothing },
+  { value: "home-goods", label: messages.marketplace.homeGoods },
+  { value: "electronics", label: messages.marketplace.electronics },
+  { value: "books", label: messages.marketplace.books },
+  { value: "furniture", label: messages.marketplace.furniture },
+  { value: "other", label: messages.marketplace.other },
 ];
 
-const illustrations: Record<MarketListingCategory, string> = {
-  clothing: "✳",
-  "home-goods": "⌂",
-  electronics: "▣",
-  books: "▤",
-  furniture: "▱",
-  other: "✦",
+const categoryIcons: Record<MarketListingCategory, AppIconName> = {
+  clothing: "shirt",
+  "home-goods": "home",
+  electronics: "smartphone",
+  books: "book-open",
+  furniture: "armchair",
+  other: "package",
 };
 
 const conditions: Record<MarketListing["condition"], string> = {
-  NEW: "New",
-  LIKE_NEW: "Like new",
-  GOOD: "Good",
-  FAIR: "Fair",
+  NEW: messages.marketplace.new,
+  LIKE_NEW: messages.marketplace.likeNew,
+  GOOD: messages.marketplace.good,
+  FAIR: messages.marketplace.fair,
 };
 
 function formatPrice(priceKobo: number) {
@@ -48,48 +50,37 @@ export function MarketplaceBrowser({ initialQuery = "" }: { initialQuery?: strin
     <>
       <section className="marketplace-hero">
         <div className="marketplace-hero-copy">
-          <span className="landing-kicker">THE MINNA MARKETPLACE</span>
-          <h1>Good finds deserve a second home.</h1>
-          <p>Discover pre-loved clothes, home essentials, books and more from people around Minna.</p>
+          <h1>{messages.marketplace.heroTitle}</h1>
+          <p>{messages.marketplace.heroSubtitle}</p>
           <div className="marketplace-hero-actions">
-            <a href="#marketplace-listings" className="button button-primary">Explore the market <span aria-hidden="true">↓</span></a>
-            <Link href="/marketplace/sell" className="marketplace-text-link">Have something to sell? <span>List it here →</span></Link>
+            <a href="#marketplace-listings" className="button button-primary">{messages.marketplace.explore}</a>
+            <Link href="/marketplace/sell" className="marketplace-text-link">{messages.marketplace.haveToSell} {messages.marketplace.listHere}</Link>
           </div>
           <nav className="marketplace-quick-links" aria-label="Marketplace account links"><Link href="/marketplace/saved">Saved items</Link><Link href="/marketplace/orders">Your orders</Link><Link href="/marketplace/sell">Your listings</Link></nav>
-          <div className="marketplace-trust-note"><span aria-hidden="true">✓</span> Local finds · Reuse more · Connect directly</div>
-        </div>
-        <div className="marketplace-hero-art" aria-hidden="true">
-          <div className="marketplace-art-circle marketplace-art-circle-one" />
-          <div className="marketplace-art-circle marketplace-art-circle-two" />
-          <div className="marketplace-art-tag">GOOD FINDS<br />GOOD FOR MINNA</div>
-          <div className="marketplace-art-item marketplace-art-item-one">✳</div>
-          <div className="marketplace-art-item marketplace-art-item-two">▤</div>
-          <div className="marketplace-art-item marketplace-art-item-three">⌂</div>
-          <span className="marketplace-art-caption">Pass it on. Find your next favourite.</span>
         </div>
       </section>
 
       <section className="marketplace-categories" aria-label="Shop by category">
         {categories.slice(1).map((item) => (
           <button key={item.value} type="button" className={`marketplace-category-chip ${category === item.value ? "active" : ""}`} onClick={() => setCategory(category === item.value ? "" : item.value)}>
-            <span aria-hidden="true">{illustrations[item.value as MarketListingCategory]}</span>{item.label}
+            <AppIcon name={categoryIcons[item.value as MarketListingCategory]} size={16} />{item.label}
           </button>
         ))}
       </section>
 
       <section id="marketplace-listings" className="marketplace-listings-section">
         <div className="marketplace-section-heading">
-          <div><span className="landing-kicker">SHOP LOCAL, GIVE THINGS ANOTHER LIFE</span><h2>Find your next good thing</h2></div>
-          <label className="marketplace-search"><span className="sr-only">Search listings</span><span aria-hidden="true">⌕</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the market" /></label>
+          <div><h2>{messages.marketplace.findYourNext}</h2></div>
+          <label className="marketplace-search"><span className="sr-only">Search listings</span><AppIcon name="search" size={16} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={messages.marketplace.searchPlaceholder} /></label>
         </div>
-        {isLoading ? <div className="marketplace-state" role="status">Finding good things in Minna…</div>
+        {isLoading ? <div className="marketplace-state" role="status">{messages.marketplace.loadingListings}</div>
           : isError ? <div className="marketplace-state marketplace-state-error" role="alert"><strong>Marketplace is unavailable right now.</strong><span>{error instanceof Error ? error.message : "Listings could not be loaded."}</span><button type="button" className="button button-secondary" onClick={() => void refetch()}>Try again</button></div>
             : listings.length ? (
               <div className="marketplace-listing-grid">
                 {listings.map((listing) => (
                   <article key={listing.id} className="marketplace-listing-card">
                     <Link href={`/marketplace/${listing.id}`} className="marketplace-listing-card-link">
-                      <span className={`marketplace-listing-art marketplace-art-${listing.category}`} aria-hidden="true">{illustrations[listing.category]}</span>
+                      <span className={`marketplace-listing-art marketplace-art-${listing.category}`} role="img" aria-label={`${listing.title} photo placeholder`} />
                       <span className="marketplace-listing-condition">{conditions[listing.condition]}</span>
                       <span className="marketplace-listing-category">{categories.find((item) => item.value === listing.category)?.label}</span>
                       <h3>{listing.title}</h3>
@@ -105,17 +96,17 @@ export function MarketplaceBrowser({ initialQuery = "" }: { initialQuery?: strin
               </div>
             ) : (
               <div className="marketplace-state marketplace-empty">
-                <span aria-hidden="true">✳</span><h3>The market is just getting started.</h3>
-                <p>No approved listings match these filters. Try another category or share a good find.</p>
-                <Link href="/marketplace/sell" className="button button-primary">List your first item</Link>
+                <AppIcon name="search" /><h3>{messages.marketplace.justStarted}</h3>
+                <p>{messages.marketplace.noListings}</p>
+                <Link href="/marketplace/sell" className="button button-primary">{messages.marketplace.listFirst}</Link>
               </div>
             )}
       </section>
 
       <section className="marketplace-promo">
-        <div className="marketplace-promo-icon" aria-hidden="true">↻</div>
-        <div><span className="landing-kicker">THRIFT WITH PURPOSE</span><h2>Better finds. Less waste. More community.</h2><p>Give useful items a second life and help keep good things moving around Minna.</p></div>
-        <Link href="/marketplace/sell" className="button button-secondary">Sell something you love</Link>
+        <div className="marketplace-promo-icon"><AppIcon name="recycle" /></div>
+        <div><h2>{messages.marketplace.purposeTitle}</h2><p>{messages.marketplace.purposeDesc}</p></div>
+        <Link href="/marketplace/sell" className="button button-secondary">{messages.marketplace.sellSomething}</Link>
       </section>
     </>
   );

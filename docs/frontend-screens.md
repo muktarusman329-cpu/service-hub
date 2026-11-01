@@ -6,7 +6,7 @@ The frontend is currently backed by `MockApiClient`; the API paths and JSON shap
 
 | Route | Purpose | Mock hooks | Proposed API |
 |---|---|---|---|
-| `/` | Public landing | `useCatalog`, technician and marketplace hooks | `GET /v1/catalog?city=minna`; `GET /v1/technicians?city=minna`; `GET /v1/marketplace/listings` |
+| `/` | Public landing with service and area request search, popular services, technician cards and marketplace links | `useCatalog`, `useTechnicians` | `GET /v1/catalog?city=minna`; `GET /v1/technicians?city=minna` |
 | `/landing` | Landing alias | Same as `/` | Same as `/` |
 | `/services` | Service directory | `useCatalog` | `GET /v1/catalog?city=minna` |
 | `/services/:slug` | Service detail | `useCatalog` | `GET /v1/services/:slug?city=minna` |

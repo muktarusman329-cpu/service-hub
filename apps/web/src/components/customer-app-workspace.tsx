@@ -13,6 +13,7 @@ import { useConversations, useMessages, useSendMessage } from "@servicehub/share
 import { useCatalog } from "@servicehub/shared/hooks/use-catalog";
 import { useCreatePayment, useCreateReview, useDisputeBooking, useMarkNotificationRead, useNotifications, usePayments, useReviews } from "@servicehub/shared/hooks/use-customer-tools";
 import { Badge, Button, Card } from "@servicehub/ui/components";
+import { AppIcon } from "@/components/app-icon";
 
 const money = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 const makeKey = () => globalThis.crypto?.randomUUID?.() ?? `mock-${Date.now()}`;
@@ -54,7 +55,15 @@ export function CustomerDashboard() {
   );
 }
 
-export function RequestFlow({ directTechnicianId }: { directTechnicianId?: string }) {
+export function RequestFlow({
+  directTechnicianId,
+  initialServiceSlug,
+  initialAreaSlug,
+}: {
+  directTechnicianId?: string;
+  initialServiceSlug?: string;
+  initialAreaSlug?: string;
+}) {
   const router = useRouter();
   const catalog = useCatalog();
   const createRequest = useCreateJobRequest();
@@ -67,6 +76,13 @@ export function RequestFlow({ directTechnicianId }: { directTechnicianId?: strin
   const [budget, setBudget] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const allServices = catalog.data?.services.filter((service) => service.isActive) ?? [];
+
+  useEffect(() => {
+    const selectedService = catalog.data?.services.find((service) => service.slug === initialServiceSlug);
+    const selectedArea = minnaAreas.find((area) => area.slug === initialAreaSlug);
+    if (selectedService) setServiceId(selectedService.id);
+    if (selectedArea) setAreaId(selectedArea.id);
+  }, [catalog.data?.services, initialAreaSlug, initialServiceSlug]);
 
   if (catalog.isLoading) return <LoadError loading retry={() => void catalog.refetch()} />;
   if (catalog.isError) return <LoadError loading={false} error={catalog.error} retry={() => void catalog.refetch()} />;
@@ -178,7 +194,7 @@ export function RequestAndQuotes({ id }: { id: string }) {
           {!quoteRows.length ? <div className="public-empty-state"><h3>No quotes yet</h3><p>We will show technician replies here. You can leave this request open or cancel it.</p></div> : quoteRows.map((quote: Quote) => <div className="quote-card" key={quote.id}>
             <div className="section-head"><strong>{quote.technician.displayName}</strong>{quote.technician.verified && <Badge tone="success">Verified</Badge>}</div>
             <p className="metric-value">{money(quote.priceKobo)}</p><p className="subtle">Service fee preview {money(feePreview(quote.priceKobo))} · total preview {money(quote.priceKobo + feePreview(quote.priceKobo))}</p>
-            <p className="subtle">★ {quote.technician.rating.average?.toFixed(1) ?? "New"} · {quote.technician.completedJobCount} jobs · {quote.technician.areaName} · {quote.estimatedArrivalMins ?? "Time to confirm"} min</p>
+            <p className="subtle"><AppIcon name="star" size={16} /> {quote.technician.rating.average?.toFixed(1) ?? "New"} · {quote.technician.completedJobCount} jobs · {quote.technician.areaName} · {quote.estimatedArrivalMins ?? "Time to confirm"} min</p>
             <p>{quote.message}</p>
             <Button disabled={accept.isPending} onClick={() => accept.mutate(
               { quoteId: quote.id, data: { paymentMethod, idempotencyKey: makeKey() } },

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PublicHeader } from "@/components/public-header";
+import { messages } from "@servicehub/shared/messages/en";
 
 export function PublicPageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -10,20 +11,20 @@ export function PublicPageShell({ children }: { children: React.ReactNode }) {
         <div className="public-container">
           <div className="landing-footer-main">
             <div>
-              <Link href="/" className="landing-brand"><span className="landing-brand-mark">S</span><span>ServiceHub</span></Link>
-              <p>Local services, made easier.</p>
+              <Link href="/" className="landing-brand"><span>ServiceHub</span></Link>
+              <p>{messages.landing.servingMinna}</p>
             </div>
             <div className="landing-footer-links">
-              <Link href="/services">Services</Link>
-              <Link href="/marketplace">Marketplace</Link>
-              <Link href="/technicians">Technicians</Link>
-              <Link href="/help">Help centre</Link>
-              <Link href="/contact">Contact</Link>
-              <Link href="/privacy">Privacy</Link>
-              <Link href="/terms">Terms</Link>
+              <Link href="/services">{messages.landing.services}</Link>
+              <Link href="/marketplace">{messages.landing.marketplace}</Link>
+              <Link href="/technicians">{messages.landing.technicians}</Link>
+              <Link href="/help">{messages.landing.footerHelp}</Link>
+              <Link href="/contact">{messages.landing.footerContact}</Link>
+              <Link href="/privacy">{messages.landing.footerPrivacy}</Link>
+              <Link href="/terms">{messages.landing.footerTerms}</Link>
             </div>
           </div>
-          <div className="landing-footer-bottom"><span>Serving Minna, Nigeria</span><span>© 2026 ServiceHub</span></div>
+          <div className="landing-footer-bottom"><span>{messages.landing.servingMinna}</span><span>{messages.landing.copyright}</span></div>
         </div>
       </footer>
     </div>

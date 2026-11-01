@@ -8,6 +8,7 @@ import { categories } from "@servicehub/shared/fixtures/categories";
 import { minnaAreas } from "@servicehub/shared/fixtures/areas";
 import { distanceToTechnicianArea } from "@/components/technician-location";
 import type { GeoPoint } from "@/components/technician-location";
+import { AppIcon } from "@/components/app-icon";
 
 const LiveTechnicianMap = dynamic(
   () => import("@/components/live-technician-map").then((module) => module.LiveTechnicianMap),
@@ -142,7 +143,7 @@ export function TechnicianDirectory({ technicians }: { technicians: TechnicianPu
             </div>
           ) : (
             <button type="button" className="button button-primary" onClick={findNearbyTechnicians} disabled={isLocating}>
-              {isLocating ? "Finding your location…" : "⌖ Use my location"}
+              {isLocating ? "Finding your location…" : <><AppIcon name="map-pin" size={16} /> Use my location</>}
             </button>
           )}
         </div>
@@ -162,20 +163,20 @@ export function TechnicianDirectory({ technicians }: { technicians: TechnicianPu
             <Link key={technician.id} href={`/technicians/${technician.id}`} className="public-technician-card">
               <div className="public-technician-card-top">
                 <span className="public-avatar" aria-hidden="true">{technician.publicName.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span>
-                <span className="public-verified">✓ Verified</span>
+                <span className="public-verified"><AppIcon name="badge-check" size={16} /> Verified</span>
               </div>
               <h3>{technician.publicName}</h3>
               {userLocation && <span className="public-distance">About {Math.max(1, Math.round(distanceToTechnicianArea(technician, userLocation) ?? 0))} km to service area</span>}
               <p className="public-technician-bio">{technician.bio}</p>
-              <div className="public-rating"><span aria-label={`${technician.rating.average} out of 5 stars`}>★ {technician.rating.average.toFixed(1)}</span><span>{technician.rating.count} reviews</span></div>
+              <div className="public-rating"><span aria-label={`${technician.rating.average} out of 5 stars`}><AppIcon name="star" size={16} /> {technician.rating.average.toFixed(1)}</span><span>{technician.rating.count} reviews</span></div>
               <div className="public-skill-list">{technician.skills.slice(0, 3).map((skill) => <span key={skill.service.name}>{skill.service.name}</span>)}</div>
-              <div className="public-technician-card-bottom"><span>{technician.completedJobCount} jobs completed</span><span aria-hidden="true">→</span></div>
+              <div className="public-technician-card-bottom"><span>{technician.completedJobCount} jobs completed</span><AppIcon name="arrow-right" size={16} /></div>
             </Link>
           ))}
         </div>
       ) : (
         <div className="public-empty-state">
-          <span className="public-empty-icon" aria-hidden="true">⌕</span>
+          <span className="public-empty-icon"><AppIcon name="search" /></span>
           <h2>No professionals match those filters</h2>
           <p>Try a different service, area, rating, or search term.</p>
           <button type="button" className="button button-secondary" onClick={() => { setService(""); setArea(""); setMinimumRating(""); setSearch(""); }}>Clear filters</button>

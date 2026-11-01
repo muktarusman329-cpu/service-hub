@@ -69,7 +69,7 @@ export default function SignInPage() {
   }, [consent, router, routeUser]);
 
   return <main className="auth-page"><section className="auth-card">
-    <Link className="brand auth-brand" href="/"><span className="brand-mark">S</span>ServiceHub</Link>
+    <Link className="brand auth-brand" href="/">ServiceHub</Link>
     <p className="eyebrow">Local help in Minna</p><h1>{signup ? "Create your account" : "Welcome back"}</h1>
     <p className="subtle">{passwordMode ? "Sign in with your email and password." : `Use your ${emailMode ? "email address" : "phone number"} to get a one-time sign-in code.`}</p>
     {signup && <label className="field auth-field"><span className="field-label">Your name</span><input className="input" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" /></label>}

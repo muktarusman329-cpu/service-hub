@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { mockApiClient } from "@servicehub/shared/mock-api-client";
 import { messages } from "@servicehub/shared/messages/en";
+import { AppIcon } from "@/components/app-icon";
 
 export function DevStateSwitcher() {
   const queryClient = useQueryClient();
@@ -24,12 +25,14 @@ export function DevStateSwitcher() {
         onClick={() => setIsOpen(!isOpen)}
         className="dev-state-toggle"
         type="button"
+        aria-label={messages.dev.stateSwitcher}
+        aria-expanded={isOpen}
       >
-        {messages.dev.stateSwitcher}
+        <AppIcon name="sliders" />
       </button>
       {isOpen && (
         <div className="dev-state-panel">
-          <h3>State switcher</h3>
+          <h3>{messages.dev.stateSwitcher}</h3>
           <label className="field">
             <span className="field-label">{messages.dev.role}</span>
             <select className="input" value={role} onChange={(event) => setRole(event.target.value as typeof role)}>
