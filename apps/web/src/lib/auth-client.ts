@@ -23,6 +23,7 @@ type MockUser = {
   emailVerified: boolean;
   otpChannel: string;
   totpEnabled: boolean;
+  requiresAdminTotpEnrollment?: boolean;
 };
 
 const mockUserKey = "servicehub-mock-user";
@@ -67,17 +68,20 @@ function mockAuthFetch(path: string, init: RequestInit) {
     const pending = JSON.parse(sessionStorage.getItem(mockPendingKey) ?? "{}") as Record<string, unknown>;
     const destination = String(pending.destination ?? body.destination ?? "");
     const isNewUser = !isKnownUser(destination);
+    const isAdmin = destination.includes("admin") || destination === "+2348000000000" || destination === "admin@servicehub.com";
+    const isTechnician = pending.accountType === "TECHNICIAN" || destination.includes("tech") || destination === "+2348000000001";
     const user: MockUser = {
-      id: "mock-user",
-      displayName: String(pending.displayName ?? "Demo account"),
-      phone: destination,
-      email: null,
-      roles: ["USER"],
+      id: isAdmin ? "mock-admin" : "mock-user",
+      displayName: isAdmin ? "Admin User" : isTechnician ? "Demo Technician" : String(pending.displayName ?? "Demo account"),
+      phone: destination.includes("@") ? null : destination,
+      email: destination.includes("@") ? destination : null,
+      roles: isAdmin ? ["SUPER_ADMIN"] : isTechnician ? ["TECHNICIAN"] : ["USER"],
       googleLinked: false,
       phoneVerified: true,
-      emailVerified: false,
+      emailVerified: destination.includes("@"),
       otpChannel: "AUTO",
       totpEnabled: false,
+      requiresAdminTotpEnrollment: isAdmin,
     };
     localStorage.setItem(mockUserKey, JSON.stringify(user));
     addKnownUser(destination);
@@ -116,8 +120,16 @@ function mockAuthFetch(path: string, init: RequestInit) {
     return { user };
   }
   if (path === "/auth/totp/verify-login") return { user: readMockUser() ?? { id: "mock-user", roles: ["USER"] } };
-  if (path === "/auth/me") return readMockUser() ?? { id: "mock-user", phone: null, email: null, roles: [], googleLinked: false, phoneVerified: false, emailVerified: false, otpChannel: "AUTO", totpEnabled: false };
-  if (path === "/auth/sessions") return [];
+  if (path === "/auth/me") {
+    const user = readMockUser();
+    if (!user) return { id: "mock-user", phone: null, email: null, roles: [], googleLinked: false, phoneVerified: false, emailVerified: false, otpChannel: "AUTO", totpEnabled: false };
+    return user;
+  }
+  if (path === "/auth/sessions") {
+    const user = readMockUser();
+    if (!user) return [];
+    return [{ id: "mock-session", deviceLabel: "Demo Device", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", lastSeenAt: new Date().toISOString(), createdAt: new Date().toISOString() }];
+  }
   if (path === "/auth/logout" || path === "/auth/logout-everywhere") {
     localStorage.removeItem(mockUserKey);
     return { ok: true };
