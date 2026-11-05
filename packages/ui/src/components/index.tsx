@@ -19,3 +19,11 @@ export function Skeleton({ className = "" }: { className?: string }) {
 export function Table({ children, className = "" }: HTMLAttributes<HTMLTableElement>) {
   return <div className="table-wrap"><table className={`data-table ${className}`}>{children}</table></div>;
 }
+export function LoadingState({ loading, error, retry, loadingMessage = "Loading live data…" }: { loading: boolean; error?: Error | null; retry: () => void; loadingMessage?: string }) {
+  if (loading) return <Card><p role="status">{loadingMessage}</p></Card>;
+  if (error) return <Card><p className="error-text" role="alert">{error.message}</p><Button tone="secondary" onClick={retry}>Retry</Button></Card>;
+  return null;
+}
+export function FeatureUnavailable({ title, description = "This feature is not backed by a live API workflow yet. No sample data or local-only changes are shown." }: { title: string; description?: string }) {
+  return <Card><h2>{title}</h2><p className="subtle">{description}</p></Card>;
+}

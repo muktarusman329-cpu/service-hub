@@ -24,16 +24,6 @@ const photos = {
 } as const;
 
 export type MarketplacePhotoCategory = keyof typeof photos.marketplace;
-const localPhotos = {
-  hero: "/images/istockphoto-2250829230-1024x1024.jpg",
-  services: {
-    "ac-fridge-repair": "/images/istockphoto-2250829230-1024x1024.jpg",
-    "generator-repair": "/images/istockphoto-1545002202-1024x1024.jpg",
-    "phone-laptop-repair": "/images/istockphoto-847644282-1024x1024.jpg",
-    networking: "/images/istockphoto-1303835929-1024x1024.jpg",
-    "local-dispatch": "/images/george-dagerotip-nfApJzIkX1I-unsplash.jpg",
-  },
-} as const;
 const serviceAliases: Record<string, keyof typeof photos.services> = {
   "AC and fridge repair": "ac-fridge-repair",
   "Phone and laptop repair": "phone-laptop-repair",
@@ -41,7 +31,6 @@ const serviceAliases: Record<string, keyof typeof photos.services> = {
 
 export function servicePhotoUrl(service: string) {
   const slug = serviceAliases[service] ?? service.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  if (isLocalServicePhotoSlug(slug)) return localPhotos.services[slug];
   return unsplashUrl(isServicePhotoSlug(slug) ? photos.services[slug] : photos.hero, 720);
 }
 
@@ -50,7 +39,7 @@ export function marketplacePhotoUrl(category: MarketplacePhotoCategory) {
 }
 
 export function heroPhotoUrl() {
-  return localPhotos.hero;
+  return unsplashUrl(photos.hero, 960);
 }
 
 function unsplashUrl(photoId: string, width: number) {
@@ -86,8 +75,4 @@ export function AppPhoto({
       />
     </div>
   );
-}
-
-function isLocalServicePhotoSlug(slug: string): slug is keyof typeof localPhotos.services {
-  return Object.hasOwn(localPhotos.services, slug);
 }

@@ -17,3 +17,7 @@ test-results
 *.tsbuildinfo
 .local-services/
 servicehub_dev
+# Local image assets
+apps/*.jpg
+apps/*.jpeg
+apps/*.png
