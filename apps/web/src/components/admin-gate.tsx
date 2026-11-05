@@ -31,6 +31,11 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
         }
         setReady(true);
       } catch (e) {
+        const status = (e as { status?: number }).status;
+        if (status === 401) {
+          router.push("/sign-in");
+          return;
+        }
         setError(e instanceof Error ? e.message : "Sign in to access admin tools.");
         router.push("/sign-in");
       }

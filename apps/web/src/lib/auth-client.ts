@@ -122,12 +122,20 @@ function mockAuthFetch(path: string, init: RequestInit) {
   if (path === "/auth/totp/verify-login") return { user: readMockUser() ?? { id: "mock-user", roles: ["USER"] } };
   if (path === "/auth/me") {
     const user = readMockUser();
-    if (!user) return { id: "mock-user", phone: null, email: null, roles: [], googleLinked: false, phoneVerified: false, emailVerified: false, otpChannel: "AUTO", totpEnabled: false };
+    if (!user) {
+      const error = new Error("Not authenticated");
+      (error as { status?: number }).status = 401;
+      throw error;
+    }
     return user;
   }
   if (path === "/auth/sessions") {
     const user = readMockUser();
-    if (!user) return [];
+    if (!user) {
+      const error = new Error("Not authenticated");
+      (error as { status?: number }).status = 401;
+      throw error;
+    }
     return [{ id: "mock-session", deviceLabel: "Demo Device", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", lastSeenAt: new Date().toISOString(), createdAt: new Date().toISOString() }];
   }
   if (path === "/auth/logout" || path === "/auth/logout-everywhere") {
