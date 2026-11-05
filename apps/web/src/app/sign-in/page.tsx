@@ -64,7 +64,7 @@ function SignInContent() {
       }
       const purpose = "SIGN_IN";
       await requestOtp({ destination: normalizedDestination, purpose, ...(becomeTechnicianHint ? { accountType: "TECHNICIAN" } : {}) });
-      sessionStorage.setItem("servicehub-auth", JSON.stringify({ destination: normalizedDestination, purpose, becomeTechnician: becomeTechnicianHint, isNewUser: true }));
+      sessionStorage.setItem("servicehub-auth", JSON.stringify({ destination: normalizedDestination, purpose, becomeTechnician: becomeTechnicianHint }));
       router.push("/verify");
     } catch (e) {
       setError(e instanceof Error ? e.message : "We could not send a code. Try again.");
