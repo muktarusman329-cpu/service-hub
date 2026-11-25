@@ -2,6 +2,22 @@ import { randomInt, timingSafeEqual } from "node:crypto";
 
 export type OtpRecordState = { expiresAt: Date; attemptCount: number; consumedAt: Date | null };
 
+export function normalizeNigerianPhone(raw: string) {
+  const value = raw.trim();
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10 && /^[789]/.test(digits)) return `+234${digits}`;
+  if (digits.length === 11 && digits.startsWith("0") && /^[789]/.test(digits.slice(1))) return `+234${digits.slice(1)}`;
+  if (digits.length === 13 && digits.startsWith("234") && /^[789]/.test(digits.slice(3))) return `+${digits}`;
+  return value.startsWith("+") ? `+${digits}` : digits;
+}
+
+export function nigerianPhoneLookupValues(normalized: string) {
+  const canonical = normalizeNigerianPhone(normalized);
+  if (!/^\+234[789]\d{9}$/.test(canonical)) return [canonical];
+  const national = canonical.slice(4);
+  return [canonical, `0${national}`, national, `234${national}`];
+}
+
 export function generateOtp() {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }

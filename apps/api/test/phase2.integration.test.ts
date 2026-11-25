@@ -68,6 +68,17 @@ describe("Phase 2 real PostgreSQL/API integration", () => {
     assert.ok(family.every((session) => session.revokedAt !== null), "reuse must revoke the complete refresh-token family");
   });
 
+  it("allows only one session when two requests verify the same OTP concurrently", { skip: !enabled }, async () => {
+    const phone = `+2348${String(randomInt(0, 1_000_000_000)).padStart(9, "0")}`;
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    await db.otpCode.create({ data: { destinationHash: digest(phone), purpose: "SIGN_UP", codeHash: digest(code, env.OTP_HASH_SECRET), channel: "DEV", expiresAt: new Date(Date.now() + 5 * 60_000), metadata: { displayName: "Concurrent OTP test", accountType: "USER", acceptTerms: true, acceptPrivacy: true } } });
+    const verify = () => fetch(`${api}/auth/otp/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ destination: phone, purpose: "SIGN_UP", code }) });
+    const responses = await Promise.all([verify(), verify()]);
+    assert.deepEqual(responses.map(response => response.status).sort(), [201, 401]);
+    const body = await responses.find(response => response.status === 201)!.json() as { user: { id: string } };
+    assert.equal(await db.session.count({ where: { userId: body.user.id, revokedAt: null } }), 1);
+  });
+
   it("creates a Google account with a mocked verified OIDC provider", { skip: !enabled }, async () => {
     assert.ok(env.GOOGLE_CLIENT_ID, "Set GOOGLE_CLIENT_ID to a test value when running integration tests");
     const subject = `mock-google-${randomUUID()}`;

@@ -44,10 +44,10 @@ export class AccessGuard implements CanActivate {
       const claims = await this.jwt.verifyAsync<{ sub: string; sid: string; scope?: string }>(token);
       if (claims.scope === "totp-challenge") throw new UnauthorizedException("Complete two-step verification");
       const [user, session] = await Promise.all([
-        this.db.user.findUnique({ where: { id: claims.sub }, select: { id: true, status: true, deletedAt: true, totpEnabledAt: true, roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } }),
+        this.db.user.findUnique({ where: { id: claims.sub }, select: { id: true, status: true, deletedAt: true, verificationMethod: true, totpEnabledAt: true, roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } }),
         this.db.session.findFirst({ where: { id: claims.sid, userId: claims.sub, revokedAt: null, expiresAt: { gt: new Date() } }, select: { id: true } })
       ]);
-      if (!user || user.status !== "ACTIVE" || user.deletedAt || !session) throw new UnauthorizedException("Sign in required");
+      if (!user || user.status !== "ACTIVE" || user.deletedAt || (env.NODE_ENV === "production" && user.verificationMethod === "DEV_UNVERIFIED") || !session) throw new UnauthorizedException("Sign in required");
       if (Date.now() - (this.lastSeenWrites.get(session.id) || 0) > 60_000) {
         this.lastSeenWrites.set(session.id, Date.now());
         void this.db.session.updateMany({ where: { id: session.id, revokedAt: null }, data: { lastSeenAt: new Date() } }).catch(() => undefined);

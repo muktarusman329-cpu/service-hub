@@ -183,10 +183,11 @@ export class TechnicianService {
     return this.onboarding(userId);
   }
   private async transition(profileId: string, to: TechnicianStatus, reason: string | undefined, internalNote: string | undefined, actorId: string | undefined, req: Request) {
-    const profile = await this.db.technicianProfile.findUnique({ where: { id: profileId }, include: { user: { select: { id: true, phoneVerifiedAt: true } } } });
+    const profile = await this.db.technicianProfile.findUnique({ where: { id: profileId }, include: { user: { select: { id: true, phoneVerifiedAt: true, verificationMethod: true } } } });
     if (!profile) throw new NotFoundException("Technician profile not found");
     try { assertTechnicianTransition(profile.approvalStatus as TechnicianStatus, to, reason); }
     catch (error) { throw new BadRequestException(error instanceof Error ? error.message : "This status change is not allowed"); }
+    if (to === "APPROVED" && profile.user.verificationMethod === "DEV_UNVERIFIED") throw new BadRequestException("Development-only unverified accounts cannot be approved as technicians");
     if (to === "APPROVED" && !profile.user.phoneVerifiedAt) throw new BadRequestException("The technician must verify their phone before approval");
     const retentionAt = to === "REJECTED" ? new Date(Date.now() + await this.retentionDays(profile.cityId) * 86_400_000) : undefined;
     await this.db.$transaction(async (tx) => {
@@ -258,7 +259,10 @@ export class TechnicianService {
       take: Math.min(50, Math.max(1, filters.limit || 20)),
       select: {
         id: true,
-        user: { select: { displayName: true } },
+        cityId: true,
+        approvalStatus: true,
+        bio: true,
+        user: { select: { id: true, displayName: true } },
         profilePhotoKey: true,
         weeklyAvailability: true,
         skills: {
@@ -267,11 +271,11 @@ export class TechnicianService {
             service: { select: { id: true, name: true, slug: true, category: { select: { name: true, slug: true } } } },
           },
         },
-        areas: { select: { area: { select: { id: true, name: true } } } },
+        areas: { select: { area: { select: { id: true, name: true, centerLat: true, centerLng: true } } } },
         portfolio: { orderBy: { sortOrder: "asc" }, take: 1, select: { objectKey: true } },
       },
     });
-    return rows.map((row) => ({ id: row.id, displayName: row.user.displayName, photoUrl: row.profilePhotoKey ? this.storage.signedDownload(row.profilePhotoKey) : null, skills: row.skills.map((x) => ({ service: x.service, yearsExperience: x.yearsExperience })), areas: row.areas.map((x) => x.area), available: filters.day ? !!(row.weeklyAvailability as Record<string, unknown> | null)?.[filters.day] : null, rating: { average: null, count: 0 } }));
+    return rows.map((row) => ({ id: row.id, userId: row.user.id, publicName: row.user.displayName || "Technician", bio: row.bio, cityId: row.cityId, approvalStatus: row.approvalStatus, verified: true, profilePhotoUrl: row.profilePhotoKey ? this.storage.signedDownload(row.profilePhotoKey) : null, skills: row.skills.map((x) => ({ service: x.service, yearsExperience: x.yearsExperience })), areas: row.areas.map((x) => x.area), weeklyAvailability: row.weeklyAvailability, completedJobCount: 0, rating: { average: 0, count: 0 } }));
   }
   async setCitySettings(cityId: string, dto: CitySettingDto, actor: string, req: Request) {
     const city = await this.db.city.findUnique({ where: { id: cityId }, select: { slug: true } }); if (!city) throw new NotFoundException("City not found");

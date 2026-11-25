@@ -14,6 +14,11 @@ enum UserStatus {
   DELETED
 }
 
+enum VerificationMethod {
+  VERIFIED
+  DEV_UNVERIFIED
+}
+
 enum OtpPurpose {
   SIGN_IN
   SIGN_UP
@@ -147,6 +152,9 @@ model User {
   displayName             String?                  @map("display_name") @db.VarChar(120)
   passwordHash            String?                  @map("password_hash")
   status                  UserStatus               @default(ACTIVE)
+  verificationMethod      VerificationMethod       @default(VERIFIED) @map("verification_method")
+  profileSetupCompleted   Boolean                  @default(true) @map("profile_setup_completed")
+  profilePreferences      Json?                    @map("profile_preferences")
   preferredOtpChannel     OtpChannel?              @map("preferred_otp_channel")
   phoneVerifiedAt         DateTime?                @map("phone_verified_at") @db.Timestamptz(6)
   emailVerifiedAt         DateTime?                @map("email_verified_at") @db.Timestamptz(6)

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PublicHeader } from "@/components/public-header";
 import { messages } from "@servicehub/shared/messages/en";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function PublicPageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -11,7 +12,7 @@ export function PublicPageShell({ children }: { children: React.ReactNode }) {
         <div className="public-container">
           <div className="landing-footer-main">
             <div>
-              <Link href="/" className="landing-brand"><span>ServiceHub</span></Link>
+              <BrandLogo className="landing-brand" />
               <p>{messages.landing.servingMinna}</p>
             </div>
             <div className="landing-footer-links">

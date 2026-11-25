@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { constantTimeHashMatch, generateOtp, hasRequiredPermissions, mayLinkIdentity, otpFailureConsumes, otpIsUsable, refreshTokenWasReused, resendIsCoolingDown, rotateRefreshFamily } from "./auth-primitives";
+import { constantTimeHashMatch, generateOtp, hasRequiredPermissions, mayLinkIdentity, normalizeNigerianPhone, nigerianPhoneLookupValues, otpFailureConsumes, otpIsUsable, refreshTokenWasReused, resendIsCoolingDown, rotateRefreshFamily } from "./auth-primitives";
 
 describe("Phase 2 identity primitives", () => {
+  it("canonicalizes Nigerian phone formats and finds legacy seeded forms", () => {
+    const canonical = "+2348031234567";
+    assert.equal(normalizeNigerianPhone("0803 123 4567"), canonical);
+    assert.equal(normalizeNigerianPhone("8031234567"), canonical);
+    assert.equal(normalizeNigerianPhone("+234 803 123 4567"), canonical);
+    assert.equal(normalizeNigerianPhone("0803-123-4567"), canonical);
+    assert.equal(normalizeNigerianPhone("2348031234567"), canonical);
+    assert.deepEqual(nigerianPhoneLookupValues(canonical), [canonical, "08031234567", "8031234567", "2348031234567"]);
+    for (const legacy of nigerianPhoneLookupValues(canonical).slice(1)) assert.equal(nigerianPhoneLookupValues(legacy)[0], canonical);
+  });
   it("generates six decimal OTP digits using the CSPRNG helper", () => {
     for (let i = 0; i < 200; i++) assert.match(generateOtp(), /^\d{6}$/);
   });

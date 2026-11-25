@@ -1,7 +1,5 @@
 import { AdminGate } from "@/components/admin-gate";
-import { AdminMockWorkspace } from "@/components/admin-mock-workspace";
 import { ProductShell } from "@/components/product-shell";
+import { AdminUnavailable } from "@/components/admin-unavailable";
 
-export default function AdminAuditPage() {
-  return <AdminGate><ProductShell audience="Admin"><AdminMockWorkspace kind="audit" /></ProductShell></AdminGate>;
-}
+export default function Page() { return <AdminGate><ProductShell audience="Admin"><AdminUnavailable feature="Audit log" /></ProductShell></AdminGate>; }

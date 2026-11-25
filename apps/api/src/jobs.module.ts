@@ -245,7 +245,7 @@ export class JobsService {
     } else if (mode === "TECHNICIAN") throw new ForbiddenException("Only technicians can use this request view");
     return { id: row.id, status: row.status, service: row.service, city: row.city, area: row.area, nearestLandmark: row.nearestLandmark, description: row.description, latitude: row.latitude, longitude: row.longitude, isAsap: row.isAsap, preferredStartAt: row.preferredStartAt, preferredEndAt: row.preferredEndAt, budgetMinKobo: row.budgetMinKobo, budgetMaxKobo: row.budgetMaxKobo, urgency: row.urgency, expiresAt: row.expiresAt, media: row.media.map(m => ({ ...m, url: this.storage.signedDownload(m.objectKey) })), activeQuoteCount: row.quotes.length, booking: row.booking };
   }
-  async myRequests(userId: string) { return this.db.jobRequest.findMany({ where: { customerId: userId, deletedAt: null }, orderBy: { createdAt: "desc" }, take: 50, select: { id: true, status: true, nearestLandmark: true, urgency: true, createdAt: true, expiresAt: true, service: { select: { name: true } }, area: { select: { name: true } }, _count: { select: { quotes: true } } } }); }
+  async myRequests(userId: string) { return this.db.jobRequest.findMany({ where: { customerId: userId, deletedAt: null }, orderBy: { createdAt: "desc" }, take: 50, include: { service: { select: { id: true, name: true, slug: true } }, city: { select: { id: true, name: true, slug: true } }, area: { select: { id: true, name: true } }, media: { where: { deletedAt: null }, select: { objectKey: true } }, booking: { select: { id: true, status: true } }, _count: { select: { quotes: { where: { status: "ACTIVE" } } } } } }).then((rows) => rows.map((row) => ({ id: row.id, status: row.status, service: row.service, city: row.city, area: row.area, nearestLandmark: row.nearestLandmark, description: row.description, urgency: row.urgency, isAsap: row.isAsap, preferredStartAt: row.preferredStartAt, preferredEndAt: row.preferredEndAt, budgetMinKobo: row.budgetMinKobo, budgetMaxKobo: row.budgetMaxKobo, expiresAt: row.expiresAt, createdAt: row.createdAt, activeQuoteCount: row._count.quotes, booking: row.booking, mediaKeys: row.media.map((media) => media.objectKey) }))); }
   async technicianFeed(userId: string) {
     const profile = await this.requireApprovedTechnician(userId);
     const startAt = new Date(); const endAt = new Date(startAt.getTime() + 120 * 60_000);
@@ -290,20 +290,20 @@ export class JobsService {
     const requestOwner = await this.db.jobRequest.findUniqueOrThrow({ where: { id: requestId }, select: { customerId: true, service: { select: { name: true } } } });
     await this.notify(requestOwner.customerId, "quote_received", "A technician sent a quote", `You have a new quote for ${requestOwner.service.name}. Compare the details before choosing.`);
     this.realtime.toUser(requestOwner.customerId, "quote:new", { requestId, quoteId: quote.id, priceKobo: quote.priceKobo, currencyCode: "NGN" });
-    return { id: quote.id, jobRequestId: quote.jobRequestId, version: quote.version, status: quote.status, priceKobo: quote.priceKobo, laborKobo: quote.laborKobo, materialsKobo: quote.materialsKobo, message: quote.message, estimatedStartAt: quote.estimatedStartAt, estimatedArrivalMins: quote.estimatedArrivalMins, validUntil: quote.validUntil };
+    return { id: quote.id, jobRequestId: quote.jobRequestId, technicianProfileId: quote.technicianProfileId, version: quote.version, status: quote.status, priceKobo: quote.priceKobo, laborKobo: quote.laborKobo, materialsKobo: quote.materialsKobo, message: quote.message, estimatedStartAt: quote.estimatedStartAt, estimatedArrivalMins: quote.estimatedArrivalMins, validUntil: quote.validUntil };
   }
   private async assertTechnicianMatched(profileId: string, request: { cityId: string; serviceId: string; areaId: string; directTechnicianProfileId: string | null }) {
     const profile = await this.db.technicianProfile.findUniqueOrThrow({ where: { id: profileId }, select: { cityId: true, approvalStatus: true, deletedAt: true } });
     const [skill, area] = await Promise.all([this.db.technicianSkill.count({ where: { profileId, serviceId: request.serviceId } }), this.db.technicianArea.count({ where: { profileId, areaId: request.areaId } })]);
     if (profile.deletedAt || !["APPROVED", "REACTIVATED"].includes(profile.approvalStatus) || profile.cityId !== request.cityId || !skill || !area || request.directTechnicianProfileId && request.directTechnicianProfileId !== profileId) throw new ForbiddenException("This request does not match your approved services and areas");
   }
-  async quoteResponse(userId: string, requestId: string) {
+  async quoteResponse(userId: string, requestId: string, includeSelected = false) {
     const request = await this.db.jobRequest.findUniqueOrThrow({
       where: { id: requestId },
       include: {
         area: true,
         quotes: {
-          where: { status: "ACTIVE" },
+          where: includeSelected ? { status: { in: ["ACTIVE", "ACCEPTED"] } } : { status: "ACTIVE" },
           orderBy: { createdAt: "desc" },
           include: { technician: { include: { user: { select: { displayName: true } }, areas: { include: { area: true } } } } }
         }
@@ -315,7 +315,7 @@ export class JobsService {
       const area = quote.technician.areas.find(x => x.areaId === request.areaId)?.area;
       let distanceMeters: number | null = null;
       if (request.latitude != null && request.longitude != null && area?.centerLat != null && area.centerLng != null) distanceMeters = haversineMeters(Number(request.latitude), Number(request.longitude), Number(area.centerLat), Number(area.centerLng));
-      return { id: quote.id, version: quote.version, priceKobo: quote.priceKobo, platformFeePreviewKobo: Math.round(quote.priceKobo * rule.rateBasisPoints / 10000), currencyCode: "NGN", laborKobo: quote.laborKobo, materialsKobo: quote.materialsKobo, message: quote.message, estimatedStartAt: quote.estimatedStartAt, estimatedArrivalMins: quote.estimatedArrivalMins, validUntil: quote.validUntil, technician: { profileId: quote.technicianProfileId, displayName: quote.technician.user.displayName, verified: true, rating: { average: null, count: 0 }, completedJobCount: 0, areaName: area?.name || null, distanceMeters } };
+      return { id: quote.id, jobRequestId: quote.jobRequestId, technicianProfileId: quote.technicianProfileId, version: quote.version, status: quote.status, priceKobo: quote.priceKobo, platformFeePreviewKobo: Math.round(quote.priceKobo * rule.rateBasisPoints / 10000), currencyCode: "NGN", laborKobo: quote.laborKobo, materialsKobo: quote.materialsKobo, message: quote.message, estimatedStartAt: quote.estimatedStartAt, estimatedArrivalMins: quote.estimatedArrivalMins, validUntil: quote.validUntil, technician: { profileId: quote.technicianProfileId, displayName: quote.technician.user.displayName, verified: true, rating: { average: null, count: 0 }, completedJobCount: 0, areaName: area?.name || null, distanceMeters } };
     });
   }
 
@@ -549,7 +549,7 @@ class JobsController {
   @Get("requests/:id") request(@Req() r: AuthenticatedRequest, @Param("id") id: string) { return this.jobs.requestDetail(r.authUser!.id, id); }
   @Get("technician/feed") feed(@Req() r: AuthenticatedRequest) { return this.jobs.technicianFeed(r.authUser!.id); }
   @Post("requests/:id/quotes") @Throttle({ default: { limit: 10, ttl: 60000 } }) quote(@Req() r: AuthenticatedRequest, @Param("id") id: string, @Body() d: QuoteDto) { return this.jobs.createQuote(r.authUser!.id, id, d, r); }
-  @Get("requests/:id/quotes") quotes(@Req() r: AuthenticatedRequest, @Param("id") id: string) { return this.jobs.quoteResponse(r.authUser!.id, id); }
+  @Get("requests/:id/quotes") quotes(@Req() r: AuthenticatedRequest, @Param("id") id: string) { return this.jobs.quoteResponse(r.authUser!.id, id, true); }
   @Post("quotes/:id/accept") accept(@Req() r: AuthenticatedRequest, @Param("id") id: string, @Body() d: AcceptQuoteDto) { return this.jobs.acceptQuote(r.authUser!.id, id, d, r); }
   @Post("requests/:id/cancel") cancelRequest(@Req() r: AuthenticatedRequest, @Param("id") id: string, @Body() d: CancelDto) { return this.jobs.cancelRequest(r.authUser!.id, id, d, r); }
   @Get("bookings/mine") bookings(@Req() r: AuthenticatedRequest) { return this.jobs.myBookings(r.authUser!.id); }

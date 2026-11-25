@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { messages } from "@servicehub/shared/messages/en";
 import { AppIcon } from "@/components/app-icon";
+import { BrandLogo } from "@/components/brand-logo";
 
 type PublicHeaderProps = {
   variant: "landing" | "public";
@@ -24,9 +25,7 @@ export function PublicHeader({ variant }: PublicHeaderProps) {
   return (
     <header className={headerClass}>
       <div className={containerClass}>
-        <Link href="/" className="landing-brand" aria-label="ServiceHub home" onClick={closeMenu}>
-          <span>ServiceHub</span>
-        </Link>
+        <BrandLogo className="landing-brand" onClick={closeMenu} />
         <nav className={navClass} aria-label="Main navigation">
           <Link href="/services">{messages.landing.services}</Link>
           <Link href="/technicians">{messages.landing.technicians}</Link>

@@ -1,15 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
-import { mockApiClient } from "../mock-api-client";
+import { liveFetch } from "../live-api-client";
+import type { Category } from "../api-client";
+
+type CatalogService = Category["services"][number];
+type CatalogResponse = {
+  city: { id: string; slug: string; name: string };
+  items: Array<Omit<Category, "sortOrder" | "services"> & { services: CatalogService[] }>;
+};
 
 export function useCatalog(citySlug = "minna") {
   return useQuery({
     queryKey: ["catalog", citySlug],
     queryFn: async () => {
-      const [categories, services] = await Promise.all([
-        mockApiClient.getCategories(citySlug),
-        mockApiClient.getServices(citySlug),
+      const [catalog, areas] = await Promise.all([
+        liveFetch<CatalogResponse>(`/catalog/${encodeURIComponent(citySlug)}/categories`),
+        liveFetch<Array<{ id: string; slug: string; name: string }>>(`/catalog/${encodeURIComponent(citySlug)}/areas`),
       ]);
-      return { categories, services };
+      const categories = catalog.items.map((category, index) => ({ ...category, sortOrder: index }));
+      const services = categories.flatMap((category) => category.services);
+      return { categories, services, areas, city: catalog.city };
     },
   });
 }

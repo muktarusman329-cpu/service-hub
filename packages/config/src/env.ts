@@ -16,6 +16,7 @@ const envSchema = z.object({
   S3_FORCE_PATH_STYLE: z.stringbool().default(true),
   OTP_PRIMARY_CHANNEL: z.enum(["whatsapp", "termii", "email", "dev"]).default("dev"),
   OTP_FALLBACK_CHANNEL: z.enum(["whatsapp", "termii", "email", "dev"]).default("termii"),
+  AUTH_ALLOW_UNVERIFIED_DEV: z.stringbool().default(false),
   JWT_ACCESS_SECRET: z.string().default("local-only-access-secret-change-before-deploy"),
   OTP_HASH_SECRET: z.string().default("local-only-otp-hash-secret-change-before-deploy"),
   APP_ORIGINS: z.string().default("http://localhost:3000"),
@@ -50,6 +51,7 @@ const envSchema = z.object({
 }).superRefine((value, ctx) => {
   if (!value.APP_ORIGINS.split(",").every((origin) => z.string().url().safeParse(origin.trim()).success)) ctx.addIssue({ code: "custom", path: ["APP_ORIGINS"], message: "Use a comma-separated list of valid origin URLs" });
   if (value.NODE_ENV !== "production") return;
+  if (value.AUTH_ALLOW_UNVERIFIED_DEV) ctx.addIssue({ code: "custom", path: ["AUTH_ALLOW_UNVERIFIED_DEV"], message: "Development verification bypass cannot be enabled in production" });
   for (const key of ["APP_ENCRYPTION_KEY", "SESSION_SECRET", "JWT_ACCESS_SECRET", "OTP_HASH_SECRET"] as const) {
     if (!process.env[key] || value[key]!.length < 32 || value[key]!.includes("local-only")) ctx.addIssue({ code: "custom", path: [key], message: "Set a unique production secret of at least 32 characters" });
   }

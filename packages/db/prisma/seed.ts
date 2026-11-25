@@ -17,7 +17,9 @@ const permissions = [
 ] as const;
 
 async function main() {
-  const phone = process.env.SEED_SUPER_ADMIN_PHONE?.trim() || null;
+  const configuredPhone = process.env.SEED_SUPER_ADMIN_PHONE?.trim() || null;
+  const phoneDigits = configuredPhone?.replace(/\D/g, "") || "";
+  const phone = !configuredPhone ? null : phoneDigits.startsWith("0") && phoneDigits.length === 11 ? `+234${phoneDigits.slice(1)}` : phoneDigits.startsWith("234") && phoneDigits.length === 13 ? `+${phoneDigits}` : configuredPhone.startsWith("+") ? `+${phoneDigits}` : phoneDigits.length === 10 ? `+234${phoneDigits}` : configuredPhone;
   const email = process.env.SEED_SUPER_ADMIN_EMAIL?.trim().toLowerCase() || null;
   if (!phone && !email) throw new Error("Set SEED_SUPER_ADMIN_PHONE or SEED_SUPER_ADMIN_EMAIL before seeding.");
 
@@ -88,11 +90,13 @@ async function main() {
     }
   }
 
-  const user = await prisma.user.upsert({
-    where: email ? { email } : { phoneE164: phone! },
-    update: { status: "ACTIVE" },
-    create: { email, phoneE164: phone, displayName: "ServiceHub Super Admin", status: "ACTIVE", emailVerifiedAt: email ? new Date() : null, phoneVerifiedAt: phone ? new Date() : null }
-  });
+  const legacyPhoneCandidates = configuredPhone ? [configuredPhone.replace(/\D/g, ""), configuredPhone.replace(/\D/g, "").replace(/^234/, "0")] : [];
+  const existingUser = email
+    ? await prisma.user.findUnique({ where: { email } })
+    : await prisma.user.findFirst({ where: { OR: [{ phoneE164: { in: [...new Set([phone!, ...legacyPhoneCandidates])] } }, { roles: { some: { role: { key: "SUPER_ADMIN" } } } }] } });
+  const user = existingUser
+    ? await prisma.user.update({ where: { id: existingUser.id }, data: { email: email ?? existingUser.email, phoneE164: phone ?? existingUser.phoneE164, status: "ACTIVE", ...(email ? { emailVerifiedAt: new Date() } : {}), ...(phone ? { phoneVerifiedAt: new Date() } : {}) } })
+    : await prisma.user.create({ data: { email, phoneE164: phone, displayName: "ServiceHub Super Admin", status: "ACTIVE", emailVerifiedAt: email ? new Date() : null, phoneVerifiedAt: phone ? new Date() : null } });
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: roleByKey.get("SUPER_ADMIN")!.id } }, update: {}, create: { userId: user.id, roleId: roleByKey.get("SUPER_ADMIN")!.id } });
   console.log(`Seed completed: ${roleRows.length} roles, ${permissionRows.length} permissions, ${areas.length} Minna areas, ${catalog.length} categories, SUPER_ADMIN created from environment configuration.`);
 }

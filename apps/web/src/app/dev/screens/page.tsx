@@ -77,7 +77,7 @@ const screens: Screen[] = [
   { area: "Admin console", route: "/admin/payments", name: "Payments, commission and payouts", status: "IN PROGRESS" },
   { area: "Admin console", route: "/admin/notifications", name: "Notification templates", status: "IN PROGRESS" },
   { area: "Admin console", route: "/admin/settings", name: "Platform settings", status: "IN PROGRESS" },
-  { area: "Admin console", route: "/admin/security", name: "Admin two-factor demo", status: "IN PROGRESS" },
+  { area: "Admin console", route: "/admin/security", name: "Admin two-factor security", status: "IN PROGRESS" },
   { area: "Developer tools", route: "/dev/design-system", name: "Design system", status: "IN PROGRESS" },
   { area: "Developer tools", route: "/dev/screens", name: "Route status registry", status: "IN PROGRESS" },
 ];
@@ -98,7 +98,7 @@ export default function DevScreensPage() {
     <main className="dev-screens-page">
       <div className="dev-screens-content">
         <div className="page-heading">
-          <div><div className="eyebrow">FRONTEND REVIEW</div><h1>Dev screens</h1><p className="subtle">DONE means the route has its mock states and core interactions. Other routes still need completion or review. Landing technician cards use demo profiles from MockApiClient.</p></div>
+          <div><div className="eyebrow">FRONTEND REVIEW</div><h1>Dev screens</h1><p className="subtle">This registry lists application routes and their current implementation status. Workspaces use live API data or an unavailable state.</p></div>
         </div>
         <div className="dev-status-legend" aria-label="Screen status legend">
           {(["NOT STARTED", "IN PROGRESS", "DONE"] as const).map((status) => <span className={`screen-status ${statusClass[status]}`} key={status}>{status}</span>)}

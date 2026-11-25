@@ -1,5 +1,2 @@
-import { redirect } from "next/navigation";
-
-export default function SignUpPage() {
-  redirect("/sign-in");
-}
+import { AuthEntry } from "@/components/auth-entry";
+export default function SignUpPage() { return <AuthEntry mode="SIGN_UP" />; }

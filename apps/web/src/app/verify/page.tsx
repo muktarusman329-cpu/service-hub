@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ClipboardEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { requestOtp, verifyOtp, verifyTotpLogin } from "@/lib/auth-client";
 import { messages } from "@servicehub/shared/messages/en";
+import { BrandLogo } from "@/components/brand-logo";
 
 type PendingAuth = { 
   destination: string; 
@@ -48,9 +49,10 @@ export default function VerifyPage() {
     if (raw) { 
       const value = JSON.parse(raw) as PendingAuth; 
       setPending(value); 
-      if (value.challengeToken) setChallenge(value.challengeToken); 
-    } 
-  }, []);
+      if (value.challengeToken) setChallenge(value.challengeToken);
+      else { sessionStorage.removeItem("servicehub-auth"); router.replace("/sign-in"); }
+    } else router.replace("/sign-in");
+  }, [router]);
   
   useEffect(() => { 
     if (seconds <= 0) return; 
@@ -76,15 +78,16 @@ export default function VerifyPage() {
         else finish(result.user, result.isNewUser);
       }
     } catch (e) { 
-      setAttempts((a) => a + 1);
+      const nextAttempt = attempts + 1;
+      setAttempts(nextAttempt);
       setDigits(["", "", "", "", "", ""]); 
       inputs.current[0]?.focus(); 
       const errorMsg = e instanceof Error ? e.message : "That code could not be verified. Try again.";
       if (errorMsg.includes("invalid") || errorMsg.includes("incorrect")) {
-        setError(messages.auth.codeInvalid.replace("{tries}", String(6 - attempts)));
+        setError(messages.auth.codeInvalid.replace("{tries}", String(Math.max(0, 5 - nextAttempt))));
       } else if (errorMsg.includes("expired")) {
         setError(messages.auth.codeExpired);
-      } else if (attempts >= 6) {
+      } else if (nextAttempt >= 5) {
         setError(messages.auth.tooManyAttempts);
       } else {
         setError(errorMsg);
@@ -99,7 +102,7 @@ export default function VerifyPage() {
     if (user?.requiresAdminTotpEnrollment) router.replace("/admin/security");
     else if (user?.roles?.includes("SUPER_ADMIN") || user?.roles?.includes("ADMIN")) router.replace("/admin");
     else if (user?.roles?.includes("TECHNICIAN")) router.replace("/technician");
-    else if (isNewUser || pending?.isNewUser) router.replace("/finish-account");
+    else if (isNewUser || pending?.isNewUser) router.replace("/welcome");
     else router.replace("/app");
   }
 
@@ -160,7 +163,7 @@ export default function VerifyPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
-        <Link className="brand auth-brand" href="/">ServiceHub</Link>
+        <BrandLogo className="auth-brand" />
         <p className="eyebrow">Account security</p>
         <h1>{challenge ? "Two-step verification" : messages.auth.enterCode}</h1>
         <p className="subtle">
@@ -234,7 +237,7 @@ export default function VerifyPage() {
                 {seconds > 0 ? messages.auth.resendIn.replace("{seconds}", String(seconds)) : messages.auth.resendCode}
               </button>
             </p>
-            <button className="link-button back-link" onClick={() => { sessionStorage.removeItem("servicehub-auth"); router.push("/sign-in"); }}>
+            <button className="link-button back-link" onClick={() => { sessionStorage.removeItem("servicehub-auth"); router.push(pending.purpose === "SIGN_UP" ? "/sign-up" : "/sign-in"); }}>
               {messages.auth.changeNumber}
             </button>
           </>

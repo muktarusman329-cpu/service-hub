@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { MarketListing, MarketListingCategory } from "@servicehub/shared/api-client";
-import { useMarketplaceListings, useToggleSavedMarketplaceListing } from "@servicehub/shared/hooks/use-marketplace";
+import { useMarketplaceListings } from "@servicehub/shared/hooks/use-marketplace";
 import { AppIcon, type AppIconName } from "@/components/app-icon";
 import { AppPhoto, marketplacePhotoUrl } from "@/components/app-photo";
 import { messages } from "@servicehub/shared/messages/en";
@@ -45,7 +45,7 @@ export function MarketplaceBrowser({ initialQuery = "" }: { initialQuery?: strin
     ...(category ? { category } : {}),
     ...(search.trim() ? { query: search.trim() } : {}),
   });
-  const toggleSaved = useToggleSavedMarketplaceListing();
+
 
   return (
     <>
@@ -88,10 +88,6 @@ export function MarketplaceBrowser({ initialQuery = "" }: { initialQuery?: strin
                       <span className="marketplace-listing-price">{formatPrice(listing.priceKobo)}</span>
                       <span className="marketplace-listing-meta">{listing.area.name} · {listing.city.name}</span>
                     </Link>
-                    <button className="button button-secondary marketplace-save-button" type="button" disabled={toggleSaved.isPending} onClick={() => toggleSaved.mutate(listing.id)}>
-                      Save item
-                    </button>
-                    {toggleSaved.isError && <p className="form-error" role="alert">{toggleSaved.error.message}</p>}
                   </article>
                 ))}
               </div>

@@ -21,6 +21,11 @@ export class NotificationService implements OnModuleInit, OnModuleDestroy {
   private readonly queue = new Queue<OtpMessage>(env.NOTIFICATION_QUEUE_NAME, { connection: connection() });
   private worker?: Worker<OtpMessage>;
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
+  hasProvider(destination: string, channel?: string) {
+    if (channel === "DEV") return env.NODE_ENV !== "production";
+    if (destination.includes("@")) return env.EMAIL_PROVIDER === "resend" ? !!env.RESEND_API_KEY : !!env.SMTP_URL;
+    return (!!env.WHATSAPP_CLOUD_API_TOKEN && !!env.WHATSAPP_PHONE_NUMBER_ID) || !!env.TERMII_API_KEY;
+  }
   async onModuleInit() {
     this.worker = new Worker<OtpMessage>(env.NOTIFICATION_QUEUE_NAME, async (job) => this.deliver(job.data), { connection: connection(true), concurrency: 5 });
     this.worker.on("failed", async (job, error) => {
